@@ -1,0 +1,187 @@
+# Get current date and time
+DATE := $(shell date +"%Y-%m-%d %H:%M:%S")
+
+CXX = c++
+
+CXXFLAGS = -Wall -Wextra -Werror -ggdb -std=c++98 -Iinclude
+
+INCLUDE_DIR = include
+
+INCLUDE_CORE_DIR = $(INCLUDE_DIR)/core
+INCLUDE_PARSER_DIR = $(INCLUDE_DIR)/parser
+INCLUDE_VALUES_DIR = $(INCLUDE_DIR)/values
+
+HEADER_FILES = $(wildcard $(INCLUDE_CORE_DIR)/*.hpp) \
+	$(wildcard $(INCLUDE_PARSER_DIR)/*.hpp) \
+	$(wildcard $(INCLUDE_VALUES_DIR)/*.hpp)
+
+SRCDIR = src
+TARGET = trpjson
+
+# Get all .cpp files from root and src directory
+ROOT_SRC = $(wildcard *.cpp)
+SRCDIR_SRC = $(wildcard $(SRCDIR)/*.cpp)
+CORE_SRC = $(wildcard $(SRCDIR)/core/*.cpp)
+PARSER_SRC = $(wildcard $(SRCDIR)/parser/*.cpp)
+VALUES_SRC = $(wildcard $(SRCDIR)/values/*.cpp)
+
+TRP_SRC = $(SRCDIR_SRC) $(CORE_SRC) $(PARSER_SRC) $(VALUES_SRC)
+SRC = $(ROOT_SRC) $(TRP_SRC)
+
+# Library sources (exclude main.cpp for static library)
+LIB_SRC = $(TRP_SRC)
+STATIC_LIB = lib/libtrpjson.a
+
+OBJDIR = build
+
+# Maintain directory hierarchy in build dir
+# Root .cpp files go to build/*.o
+# src/*.cpp files go to build/src/*.o  
+OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(ROOT_SRC)) \
+    $(LIB_OBJ)
+
+# Library object files (exclude main.o)
+LIB_OBJ = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/$(SRCDIR)/%.o,$(SRCDIR_SRC)) \
+    $(patsubst $(SRCDIR)/core/%.cpp,$(OBJDIR)/$(SRCDIR)/core/%.o,$(CORE_SRC)) \
+    $(patsubst $(SRCDIR)/parser/%.cpp,$(OBJDIR)/$(SRCDIR)/parser/%.o,$(PARSER_SRC)) \
+    $(patsubst $(SRCDIR)/values/%.cpp,$(OBJDIR)/$(SRCDIR)/values/%.o,$(VALUES_SRC))
+
+TOTAL_FILES := $(words $(SRC))
+
+CURRENT_FILE = 0
+
+define print_progress
+$(eval CURRENT_FILE=$(shell echo $$(($(CURRENT_FILE) + 1))))
+$(eval PERCENT=$(shell echo $$(($(CURRENT_FILE) * 100 / $(TOTAL_FILES)))))
+echo "[$(DATE)] [Compiling] $< → $@ - $(PERCENT)% complete"
+endef
+
+all: $(TARGET)
+
+$(TARGET): $(OBJ) $(HEADER_FILES)
+	@echo "[$(DATE)] [Linking] $@"
+	@$(CXX) $(CXXFLAGS) $(OBJ) -o $@
+	@echo "[$(DATE)] [Built] $@ - 100% complete"
+
+$(OBJDIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	@$(call print_progress)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(OBJDIR)/$(SRCDIR)/%.o: $(SRCDIR)/%.cpp
+	@mkdir -p $(dir $@)
+	@$(call print_progress)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(OBJDIR)/$(SRCDIR)/core/%.o: $(SRCDIR)/core/%.cpp
+	@mkdir -p $(dir $@)
+	@$(call print_progress)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(OBJDIR)/$(SRCDIR)/parser/%.o: $(SRCDIR)/parser/%.cpp
+	@mkdir -p $(dir $@)
+	@$(call print_progress)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(OBJDIR)/$(SRCDIR)/values/%.o: $(SRCDIR)/values/%.cpp
+	@mkdir -p $(dir $@)
+	@$(call print_progress)
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+re: fclean all
+
+clean:
+	@echo "[$(DATE)] [Cleaning] removing object files"
+	@rm -rf $(OBJDIR)
+
+fclean: clean benchmark-clean lib-clean
+	@echo "[$(DATE)] [Cleaning] removing binary $(TARGET)"
+	@rm -f $(TARGET)
+	@rm -f $(STATIC_LIB)
+	@rm -f $(BENCHMARK_TARGET)
+
+
+
+
+
+
+
+
+
+
+
+
+lib: $(STATIC_LIB)
+
+$(STATIC_LIB): $(LIB_OBJ) $(HEADER_FILES)
+	@echo "[$(DATE)] [Creating Static Library] $@"
+	@ar rcs $@ $(LIB_OBJ)
+	@echo "[$(DATE)] [Built] $@ - Static library ready for use!"
+
+lib-re: lib-clean lib
+
+lib-clean:
+	@echo "[$(DATE)] [Cleaning] removing static library"
+	@rm -f $(STATIC_LIB)
+
+
+install: $(STATIC_LIB)
+	@echo "[$(DATE)] [Installing] TrpJSON library to system"
+	@sudo mkdir -p /usr/local/lib
+	@sudo mkdir -p /usr/local/include
+	@sudo cp $(STATIC_LIB) /usr/local/lib/
+	@sudo cp lib/TrpJson.hpp /usr/local/include/
+	@echo "[$(DATE)] [Installed] TrpJSON library to /usr/local/"
+	@echo "   Use: g++ -std=c++98 -ltrpjson your_file.cpp"
+	@echo "   Include: #include <TrpJson.hpp>"
+
+uninstall:
+	@echo "[$(DATE)] [Uninstalling] TrpJSON library from system"
+	@sudo rm -f /usr/local/lib/libtrpjson.a
+	@sudo rm -f /usr/local/include/TrpJson.hpp
+	@echo "[$(DATE)] [Uninstalled] TrpJSON library removed"
+
+
+
+
+
+
+
+
+
+
+
+
+# BENCHMARK_DIR = benchmark
+# BENCHMARK_SRC = $(BENCHMARK_DIR)/benchmark.cpp
+# BENCHMARK_TARGET = $(BENCHMARK_DIR)/benchmark
+# BENCHMARK_OBJ = $(OBJDIR)/$(BENCHMARK_DIR)/benchmark.o
+
+# benchmark: $(BENCHMARK_TARGET)
+
+# $(BENCHMARK_TARGET): $(BENCHMARK_OBJ) $(STATIC_LIB)
+# 	@echo "[$(DATE)] [Linking Benchmark] $@"
+# 	@$(CXX) $(CXXFLAGS) $(BENCHMARK_OBJ) $(STATIC_LIB) -o $@
+# 	@echo "[$(DATE)] [Built] Benchmark executable ready!"
+# 	@echo ""
+# 	@echo "Usage:"
+# 	@echo "   ./benchmark/benchmark          - Run basic benchmarks"
+# 	@echo "   ./benchmark/run_benchmarks.sh  - Run comprehensive analysis with valgrind"
+
+# $(OBJDIR)/$(BENCHMARK_DIR)/%.o: $(BENCHMARK_DIR)/%.cpp
+# 	@mkdir -p $(dir $@)
+# 	@echo "[$(DATE)] [Compiling Benchmark] $< → $@"
+# 	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# benchmarks-run: benchmark
+# 	@echo "[$(DATE)] [Running] Comprehensive benchmark suite..."
+# 	@cd $(BENCHMARK_DIR) && ./run_benchmarks.sh
+
+# benchmark-clean:
+# 	@echo "[$(DATE)] [Cleaning] benchmark objects and results"
+# 	@rm -f $(BENCHMARK_TARGET)
+# 	@rm -f $(BENCHMARK_OBJ)
+# 	@rm -rf $(BENCHMARK_DIR)/results
+
+
+.PHONY: all lib re clean fclean libclean libfclean install uninstall #benchmark run-benchmarks clean-benchmark
