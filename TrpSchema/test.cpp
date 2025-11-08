@@ -13,18 +13,17 @@ int main (int ac, char ** av) {
 
     TrpSchemaFactory factory;
 
-    TrpSchemaObject& rootSchema = factory.object()
-        .property("arr", &factory.array()
-                    .uniq(true)
-                    .item(&factory
-                        .number()
-                        .min(5)
-                        .max(10)
-                    )
-                );
+    TrpSchemaObject& serverConfigs = factory.object()
+        .property("server",
+            &factory.object()
+            .property("host", &factory.string()).required("host")
+            .property("port", &factory.number()).required("port")
+        );
     
+    TrpSchemaArray serversConfigs = factory.array().item(&serverConfigs).min(1);
+
     TrpValidatorContext ctx;
-    if (!rootSchema.validate(parser.getAST(), ctx)) {
+    if (!serversConfigs.validate(parser.getAST(), ctx)) {
         std::cerr << "\n--- Validation Errors ---" << std::endl;
         ctx.printErrors();
         return 1;
@@ -33,4 +32,4 @@ int main (int ac, char ** av) {
     }
 
     return 0;
-}  
+}

@@ -83,7 +83,7 @@ typedef std::vector<class ITrpJsonValue*> JsonArrayVector;
 // AUTOPOINTER TEMPLATE (from core/TrpAutoPointer.hpp)
 // =============================================================================
 
-template <typename T>
+template <typename T> 
 class AutoPointer {
 private:
     T* ptr;

@@ -25,14 +25,15 @@ STATIC_LIB = lib/libtrpschema.a
 
 OBJDIR = build
 
+# Library object files (exclude main.o)
+LIB_OBJ = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/$(SRCDIR)/%.o,$(SRCDIR_SRC))
+
 # Maintain directory hierarchy in build dir
 # Root .cpp files go to build/*.o
 # src/*.cpp files go to build/src/*.o  
 OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(ROOT_SRC)) \
     $(LIB_OBJ)
 
-# Library object files (exclude main.o)
-LIB_OBJ = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/$(SRCDIR)/%.o,$(SRCDIR_SRC))
 
 TOTAL_FILES := $(words $(SRC))
 
@@ -55,6 +56,7 @@ $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	@$(call print_progress)
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
+
 
 $(OBJDIR)/$(SRCDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(dir $@)

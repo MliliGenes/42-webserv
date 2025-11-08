@@ -48,7 +48,7 @@ bool TrpSchemaString::validate(ITrpJsonValue* value, TrpValidatorContext& ctx) c
         ValidationError err;
 
         std::stringstream error;
-        error << "String size should be at least " << max_len << " chars, but got " << str->getValue().size();
+        error << "String size should be at least " << min_len << " chars, but got " << str->getValue().size();
         err.path = ctx.getCurrentPath();
         err.msg = error.str();
 
