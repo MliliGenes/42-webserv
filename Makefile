@@ -16,8 +16,8 @@ CXX_FLAGS = -Wall -Wextra -Werror -ggdb -std=c++98
 
 BUILD_DIR = build
 
-TRP_JSON_DIR = TrpJSON
-TRP_SCHEMA_DIR = TrpSchema
+TRP_JSON_DIR = dependencies/TrpJSON
+TRP_SCHEMA_DIR = dependencies/TrpSchema
 
 TRP_JSON_LIB := $(TRP_JSON_DIR)/lib/libtrpjson.a
 TRP_SCHEMA_LIB := $(TRP_SCHEMA_DIR)/lib/libtrpschema.a
