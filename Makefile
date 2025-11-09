@@ -12,7 +12,7 @@ endef
 NAME = webserv
 
 CXX = c++
-CXX_FLAGS = -Wall -Wextra -Werror -ggdb -std=c++98
+CXX_FLAGS = -Wall -Wextra -Werror -std=c++98
 
 BUILD_DIR = build
 

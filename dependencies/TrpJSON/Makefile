@@ -3,7 +3,7 @@ DATE := $(shell date +"%Y-%m-%d %H:%M:%S")
 
 CXX = c++
 
-CXXFLAGS = -Wall -Wextra -Werror -ggdb -std=c++98 -Iinclude
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -Iinclude
 
 INCLUDE_DIR = include
 
