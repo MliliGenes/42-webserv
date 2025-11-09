@@ -19,11 +19,8 @@ BUILD_DIR = build
 TRP_JSON_DIR = dependencies/TrpJSON
 TRP_SCHEMA_DIR = dependencies/TrpSchema
 
-TRP_JSON_LIB := $(TRP_JSON_DIR)/lib/libtrpjson.a
-TRP_SCHEMA_LIB := $(TRP_SCHEMA_DIR)/lib/libtrpschema.a
-
-TRP_JSON_SRC := $(wildcard $(TRP_JSON_DIR)/src/*.cpp)
-TRP_SCHEMA_SRC := $(wildcard $(TRP_SCHEMA_DIR)/src/*.cpp)
+TRP_JSON_LIB = $(TRP_JSON_DIR)/lib/libtrpjson.a
+TRP_SCHEMA_LIB = $(TRP_SCHEMA_DIR)/lib/libtrpschema.a
 
 ROOT_DIR = .
 CORE_DIR = 
@@ -33,14 +30,11 @@ CGI_DIR =
 
 ROOT_SRC = $(wildcard *.cpp)
 
-ALL_SRC = $(ROOT_SRC)
-
 ROOT_OBJ = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(ROOT_SRC))
-# each dir will have its .o files
 
-ALL_OBJ = $(ROOT_OBJ) #more will go here
+ALL_OBJ = $(ROOT_OBJ) 
 
-all: $(TRP_JSON_LIB) $(TRP_SCHEMA_LIB) $(NAME)
+all: $(NAME)
 
 re: clean all
 
@@ -50,7 +44,7 @@ clean:
 fclean: clean
 	@rm -fr $(NAME)
 
-$(NAME): $(ALL_OBJ) 
+$(NAME): $(TRP_JSON_LIB) $(TRP_SCHEMA_LIB) $(ALL_OBJ)
 	@$(CXX) -o $(NAME) $(CXX_FLAGS) $(TRP_JSON_LIB) $(TRP_SCHEMA_LIB) $(ALL_OBJ)
 	@$(print_progress)
 
@@ -59,11 +53,11 @@ $(BUILD_DIR)/%.o: %.cpp
 	@$(CXX) $(CXX_FLAGS) -c $< -o $@
 	@$(print_progress)
 
-$(TRP_JSON_LIB): $(TRP_JSON_SRC)
+$(TRP_JSON_LIB):
 	@make lib -C $(TRP_JSON_DIR)
 	@echo $(TRP_JSON_LIB) "is ready for use!"
 
-$(TRP_SCHEMA_LIB): $(TRP_SCHEMA_SRC)
+$(TRP_SCHEMA_LIB):
 	@make lib -C $(TRP_SCHEMA_DIR)
 	@echo $(TRP_JSON_LIB) "is ready for use!"
 

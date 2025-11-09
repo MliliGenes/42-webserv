@@ -20,5 +20,11 @@ int main (int ac, char ** av) {
         return 1;
     }
 
+    try {
+    // * start(); this should do everything
+    } catch (std::exception &e) {
+        
+    }
+
     return 0;
 }

@@ -35,7 +35,7 @@ OBJ = $(patsubst %.cpp,$(OBJDIR)/%.o,$(ROOT_SRC)) \
     $(LIB_OBJ)
 
 
-TOTAL_FILES := $(words $(SRC))
+TOTAL_FILES = $(words $(SRC))
 
 CURRENT_FILE = 0
 
