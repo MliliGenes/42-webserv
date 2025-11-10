@@ -3,7 +3,7 @@
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
 
-#include "../include/TrpJson.hpp"
+#include "../../include/TrpJson.hpp"
 #include <set>
 
 // since i am forcing the user to add an array it should be always an array
@@ -42,8 +42,12 @@ struct ServerConfig {
 class Config {
     private:
         std::vector<ServerConfig> _servers;
+        Config( void );
+        Config( const Config& other );
 
     public:
+        ~Config( void );
+
         Config(const TrpJsonArray* ast);
         const std::vector<ServerConfig>& servers() const;
 };
