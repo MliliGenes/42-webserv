@@ -9,10 +9,8 @@ int main (int ac, char ** av) {
     else
         parser.setLexer(new TrpJsonLexer(av[1]));
 
-    if (!parser.parse()) {
-        std::cerr << "Failed to parse JSON file." << std::endl;
+    if (!parser.parse())
         return 1;
-    }
 
     TrpValidatorContext ctx;
     if (!serversConfigArray.validate(parser.getAST(), ctx)) {
