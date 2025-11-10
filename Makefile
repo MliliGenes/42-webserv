@@ -53,7 +53,7 @@ fclean_libs:
 
 $(NAME): $(TRP_JSON_LIB) $(TRP_SCHEMA_LIB) $(ALL_OBJ)
 	@$(CXX) $(CXX_FLAGS) -o $(NAME) $(ALL_OBJ) $(TRP_JSON_LIB) $(TRP_SCHEMA_LIB)
-	@$(print_progress)
+	@echo "[$(DATE)] [Built] $@ - webserv is ready for use!"
 
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
