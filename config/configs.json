@@ -11,7 +11,7 @@
         "403": "/errors/403.html"
       },
       "root": "/var/www/example",
-      "routes": [
+      "locations": [
         {
           "path": "/",
           "methods": ["GET", "POST"],
@@ -73,7 +73,7 @@
       },
       "root": "/var/www/local",
       "index": ["index.html"],
-      "routes": [
+      "locations": [
         {
           "path": "/",
           "methods": ["GET"],

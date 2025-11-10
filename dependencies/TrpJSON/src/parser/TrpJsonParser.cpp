@@ -87,7 +87,7 @@ ITrpJsonValue* TrpJsonParser::parseValue( token& current_token ) {
 
 bool TrpJsonParser::parse( void ) {
     if ( !lexer ) {
-        std::cerr << "Error: No file provided." << std::endl;
+        std::cerr << "Error: No lexer provided." << std::endl;
         return false;
     }
 

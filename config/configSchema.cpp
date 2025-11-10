@@ -45,7 +45,7 @@ TrpSchemaObject& serverSchema = factory.object()
     .property("error_pages", &errorPagesSchema)
     .property("root", &factory.string())
     .property("index", &factory.array().item(&factory.string()))
-    .property("routes", &factory.array().item(&routeSchema))
+    .property("locations", &factory.array().item(&routeSchema))
     .required("host")
     .required("port");
 

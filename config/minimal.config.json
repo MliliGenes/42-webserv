@@ -5,7 +5,7 @@
             "port": 8080,
             "server_name": "localhost",
             "root": "./www",
-            "routes": [
+            "locations": [
                 {
                     "path": "/",
                     "methods": [

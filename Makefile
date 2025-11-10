@@ -25,7 +25,7 @@ ROOT_OBJ = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(ROOT_SRC))
 
 ALL_OBJ = $(ROOT_OBJ) 
 
-TOTAL_FILES = $(words $(ALL_SRC))
+TOTAL_FILES = $(words $(ALL_OBJ))
 
 CURRENT_FILE = 0
 
