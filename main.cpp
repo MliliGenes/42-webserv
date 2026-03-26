@@ -12,6 +12,8 @@ int main (int ac, char ** av) {
     if (!parser.parse())
         return 1;
 
+    parser.prettyPrint();
+    
     TrpValidatorContext ctx;
     if (!serversConfigArray.validate(parser.getAST(), ctx)) {
         ctx.printErrors();
