@@ -117,10 +117,10 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
                 goto handle_file;
             }
         }
-        for(std::size_t i = 0; i < config.index.size(); i++){
+       for(std::size_t i = 0; i < config.index.size(); i++){
             std::string idx = fs_path;
-            if (fs_path[fs_path.size() - 1] != '/') fs_path += '/';
-            idx += route.index[i];
+            if (idx[idx.size() - 1] != '/') idx += '/';
+            idx += config.index[i];
             if (fileExists(idx))
             {
                 fs_path = idx;
