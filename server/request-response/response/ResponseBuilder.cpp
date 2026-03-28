@@ -1,5 +1,9 @@
 #include "ResponseBuilder.hpp"
 
+ResponseBuilder::ResponseBuilder()
+{
+
+}
 
 Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& config)
 {
@@ -7,7 +11,6 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
     const LocationConfig* route = matchRoute(req.path, config);
     if(!route)
         return buildError(404, config);
-
     if(route->redirect.enabled)
     {
         Response res;
@@ -18,7 +21,6 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
         //>>>
         return res;
     }
-
     if(!route->methods.empty() && route->methods.find(req.method) == route->methods.end())
         return buildError(405, config);
     
@@ -117,7 +119,8 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
                 goto handle_file;
             }
         }
-       for(std::size_t i = 0; i < config.index.size(); i++){
+
+        for(std::size_t i = 0; i < config.index.size(); i++){
             std::string idx = fs_path;
             if (idx[idx.size() - 1] != '/') idx += '/';
             idx += config.index[i];
@@ -127,7 +130,6 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
                 goto handle_file;
             }
         }
-
         if (route.autoindex)
             return listsDirectory(fs_path, req.path);
         return buildError(403, config);
@@ -151,8 +153,9 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
 Response ResponseBuilder::handlePost(const Request&      req, const LocationConfig& route,
                                     const ServerConfig&  config)
 {
+    
     std::string root = route.root.empty() ? config.root : route.root;
-    std::string fs_path = resolve_path(root, fs_path);
+    std::string fs_path = resolve_path(root, req.path);
 
     if (!route.cgi.empty())
     {
@@ -167,12 +170,10 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
             }       
         }
     }
-
     if (!route.uploadEnable)
         return buildError(403, config);
     if (route.uploadStore.empty())
         return buildError(500, config);
-    
     std::string filename = "upload"; // default name
     std::map<std::string, std::string>::const_iterator it;
     it = req.headers.find("content-disposition");
@@ -189,7 +190,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
         oss << "upload_" << std::time(NULL);
         filename = oss.str();
     }
-
+    
     std::string path = resolve_path(route.uploadStore, filename);
     if (!writeFile(path, req.body))
         return buildError(500, config);
@@ -205,6 +206,27 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
     return res;
 }
 
+Response ResponseBuilder::handleDelete(const Request&      req, const LocationConfig& route,
+                          const ServerConfig&  config)
+{
+    std::string root = route.root.empty() ? config.root : route.root;
+    std::string fs_path = resolve_path(root, req.path);
+
+    if (!fileExists(fs_path))
+        return buildError(404, config);
+    if (deleteFile(fs_path))
+        return buildError(500, config);
+    
+    Response res;
+    res.status_code = 204;
+    res.status_message = statusMessage(204);
+    return res;
+}
+
+bool ResponseBuilder::deleteFile(std::string path)
+{
+    return std::remove(path.c_str());
+}
 
 bool ResponseBuilder::writeFile(std::string path, std::string content)
 {
@@ -213,7 +235,6 @@ bool ResponseBuilder::writeFile(std::string path, std::string content)
     file.write(content.c_str(), content.size());
     return file.good();
 }
-
 
 bool ResponseBuilder::isDirectory(const std::string& path)
 {
@@ -225,14 +246,14 @@ bool ResponseBuilder::isDirectory(const std::string& path)
 std::string ResponseBuilder::resolve_path(std::string root, std::string path)
 {
     std::string result = root;
+    std::cout << result << std::endl;
     if (!result.empty() && result[result.size() - 1] == '/' && path[0] == '/')
         result.erase(result.size() - 1);
     else if (path[0] != '/' && result[result.size() - 1] != '/')
-        path += "/";
+        result += "/";
     result += path;
     return result;
 }
-
 
 Response ResponseBuilder::buildeResfromOutput(std::string raw, const ServerConfig& config)
 {
@@ -288,41 +309,42 @@ Response ResponseBuilder::buildeResfromOutput(std::string raw, const ServerConfi
     }
 
     res.headers["Content-Length"] = sizeToString(body.size());
+    return res;
 }
 
 Response ResponseBuilder::listsDirectory(const std::string& fs_path, const std::string& req_path)
 {
     DIR* dir = opendir(fs_path.c_str());
-    if(!dir)
-    {
+    if (!dir) {
         Response res;
-        res.status_code = 403;
+        res.status_code    = 403;
         res.status_message = statusMessage(403);
         return res;
     }
 
-    std::ostringstream htmlPage;
-    htmlPage << "<html><head><title>Index of " << req_path << "</title></head>";
-    htmlPage << "<body><h1>Index of " << req_path << "</h1><hr><pre>";
+    std::ostringstream html;
+    html << "<html><head><title>Index of " << req_path << "</title></head>"
+         << "<body><h1>Index of " << req_path << "</h1><hr><pre>";
 
-    dirent* dr;
-    while ((dr = readdir(dir)) != NULL){
-        std::string name = req_path;
-        if (dr->d_name == ".") continue;
-        if (!name.empty() && name[name.size() - 1] != '/') name += '/';
-        name += dr->d_name;
-        htmlPage << "<a href=\"" << name << "\">" << dr->d_name << "</a>\n";
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        std::string name = entry->d_name;
+        if (name == ".") continue;
+        std::string href = req_path;
+        if (!href.empty() && href[href.size() - 1] != '/') href += '/';
+        href += name;
+        html << "<a href=\"" << href << "\">" << name << "</a>\n";
     }
     closedir(dir);
-    htmlPage << "</pre><hr></body></html>";
+    html << "</pre><hr></body></html>";
 
+    std::string body = html.str();
     Response res;
-    res.status_code = 200;
-    res.status_message = "ok";
-    res.body = htmlPage.str();
-    res.headers["Content-Length"] = sizeToString(res.body.size());
-    res.headers["Content-Type"] = "text/html";
-
+    res.status_code               = 200;
+    res.status_message            = statusMessage(200);
+    res.body                      = body;
+    res.headers["Content-Type"]   = "text/html";
+    res.headers["Content-Length"] = sizeToString(body.size());
     return res;
 }
 
