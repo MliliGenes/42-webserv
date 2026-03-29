@@ -49,6 +49,9 @@ class ResponseBuilder {
         Response handleDelete(const Request&      req,
                           const LocationConfig& route,
                           const ServerConfig&  config);
+        //bonus
+
+        void applySessionCookie(const Request& req, Response& res);
         
 
 };
