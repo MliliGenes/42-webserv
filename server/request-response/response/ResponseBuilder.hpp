@@ -6,10 +6,12 @@
 #include "RequestParser.hpp"
 #include "Response.hpp"
 #include "../server/core/Config.hpp"
+#include "../cookie-session/SessionManager.hpp"
 #include <string>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <ctime>
+
 
 class ResponseBuilder {
     public:
@@ -38,21 +40,21 @@ class ResponseBuilder {
         Response    listsDirectory(const std::string& fs_path, const std::string& req_path);
 
         
-        Response handleGet(const Request&      req,
+        Response    handleGet(const Request&      req,
                        const LocationConfig& route,
                        const ServerConfig&  config);
 
-        Response handlePost(const Request&      req,
+        Response    handlePost(const Request&      req,
                         const LocationConfig& route,
                         const ServerConfig&  config);
 
-        Response handleDelete(const Request&      req,
+        Response    handleDelete(const Request&      req,
                           const LocationConfig& route,
                           const ServerConfig&  config);
         //bonus
 
         SessionManager& sessions_; //this attribut where i store the sessions
-        void applySessionCookie(const Request& req, Response& res);
+        void        applySessionCookie(const Request& req, Response& res);
         
 
 };
