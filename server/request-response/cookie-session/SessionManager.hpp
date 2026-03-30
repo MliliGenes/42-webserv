@@ -22,8 +22,8 @@ class SessionManager
         session*    get(const std::string& ID);
         std::string create();
 
-        static std::string Extract_ID(const std::string& cookie);
-        static std::string buildCookieHeader(const std::string& ID);
+        std::string Extract_ID(const std::string& cookie);
+        std::string buildCookieHeader(const std::string& ID);
 
     private:
         std::map<std::string, session> sessions; // <ID , session>

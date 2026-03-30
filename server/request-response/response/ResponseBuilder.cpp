@@ -39,12 +39,13 @@ void ResponseBuilder::applySessionCookie(const Request& req, Response& res)
     std::map<std::string, std::string>::const_iterator it;
     it = req.headers.find("cookie");
     if (it != req.headers.end()){
-        std::string sID = SessionManager::Extract_ID(it->second);
+        std::string sID = sessions_.Extract_ID(it->second);
         if(!sID.empty() && sessions_.get(sID) != NULL){
             return ;
         }
     }
-    
+    std::string sID = sessions_.create();
+    res.headers["Set-Cookie"] = sessions_.buildCookieHeader(sID);
 }
 
 const LocationConfig* ResponseBuilder::matchRoute(const std::string& path, const ServerConfig& config) const
