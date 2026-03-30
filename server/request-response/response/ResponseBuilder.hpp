@@ -51,6 +51,7 @@ class ResponseBuilder {
                           const ServerConfig&  config);
         //bonus
 
+        SessionManager& sessions_; //this attribut where i store the sessions
         void applySessionCookie(const Request& req, Response& res);
         
 

@@ -34,6 +34,8 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
 }
 
 
+
+
 const LocationConfig* ResponseBuilder::matchRoute(const std::string& path, const ServerConfig& config) const
 {
     const LocationConfig* best = NULL;
@@ -53,7 +55,6 @@ const LocationConfig* ResponseBuilder::matchRoute(const std::string& path, const
     }
     return best;
 }
-
 
 Response ResponseBuilder::buildError(int code, const ServerConfig& config)
 {
@@ -82,7 +83,6 @@ Response ResponseBuilder::buildError(int code, const ServerConfig& config)
     res.body = body;
     return res;
 }
-
 
 Response ResponseBuilder::handleGet(const Request&       req, const LocationConfig& route,
                                     const ServerConfig&   config)
