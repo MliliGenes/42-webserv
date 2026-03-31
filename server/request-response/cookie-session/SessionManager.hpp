@@ -17,7 +17,9 @@ struct session
 
 class SessionManager
 {
+
     public:
+        SessionManager();
 
         session*    get(const std::string& ID);
         std::string create();

@@ -15,7 +15,7 @@
 
 class ResponseBuilder {
     public:
-        ResponseBuilder();
+        ResponseBuilder(SessionManager& sessions);
 
         
         Response dispatch(const Request& req, const ServerConfig& config);

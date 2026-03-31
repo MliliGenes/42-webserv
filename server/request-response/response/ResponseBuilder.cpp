@@ -1,7 +1,6 @@
 #include "ResponseBuilder.hpp"
 
-ResponseBuilder::ResponseBuilder()
-{
+ResponseBuilder::ResponseBuilder(SessionManager& session) : sessions_(session){
 
 }
 
