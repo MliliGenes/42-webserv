@@ -48,15 +48,15 @@ std::string SessionManager::genarate_ID(){
     static bool Seeds = true;
     if (Seeds)
     {
-        srand(std::time(NULL));
+        std::srand(static_cast<unsigned int>(std::time(NULL)));
         Seeds = false;
     }
     std::string hex = "123456789abcdef";
     std::string id;
     id.reserve(32);
-    std::size_t r = rand();
-    for(int i = 0; i < 32; i++){
-        
-    }
 
+    for(int i = 0; i < 32; i++){
+        id += hex[rand() % 16];
+    }
+    return id;
 }
