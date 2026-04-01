@@ -17,7 +17,7 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
         res.status_message = statusMessage(route->redirect.code);
         res.headers["Location"] = route->redirect.url;
         res.headers["Content-Length"] = "0";
-        //>>>
+        applySessionCookie(req, res);
         return res;
     }
     if(!route->methods.empty() && route->methods.find(req.method) == route->methods.end())
@@ -29,7 +29,7 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
     else if (req.method == "DELETE") return res = handleDelete(req, *route, config);
     else return res = buildError(405, config);
 
-    //>>>
+    applySessionCookie(req, res);
 }
 
 
@@ -38,13 +38,13 @@ void ResponseBuilder::applySessionCookie(const Request& req, Response& res)
     std::map<std::string, std::string>::const_iterator it;
     it = req.headers.find("cookie");
     if (it != req.headers.end()){
-        std::string sID = sessions_.Extract_ID(it->second);
+        std::string sID = SessionManager::Extract_ID(it->second);
         if(!sID.empty() && sessions_.get(sID) != NULL){
             return ;
         }
     }
     std::string sID = sessions_.create();
-    res.headers["Set-Cookie"] = sessions_.buildCookieHeader(sID);
+    res.headers["Set-Cookie"] = SessionManager::buildCookieHeader(sID);
 }
 
 const LocationConfig* ResponseBuilder::matchRoute(const std::string& path, const ServerConfig& config) const
