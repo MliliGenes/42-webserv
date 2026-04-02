@@ -24,12 +24,14 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
         return buildError(405, config);
     
     Response res;
-    if (req.method == "GET") return res = handleGet(req, *route, config);
-    else if (req.method == "POST") return res = handlePost(req, *route, config);
-    else if (req.method == "DELETE") return res = handleDelete(req, *route, config);
+    if (req.method == "GET")  res = handleGet(req, *route, config);
+    else if (req.method == "POST")  res = handlePost(req, *route, config);
+    else if (req.method == "DELETE")  res = handleDelete(req, *route, config);
     else return res = buildError(405, config);
 
     applySessionCookie(req, res);
+
+    return res;
 }
 
 
