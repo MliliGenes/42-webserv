@@ -147,6 +147,12 @@ int RequestParser::parseHeaders()
     }
 
     std::map<std::string, std::string>::const_iterator it;
+    it = request_.headers.find("Host:");
+    if(it == request_.headers.end()){
+        error_code_ = 400;
+        return -1;
+    }
+    
     it = request_.headers.find("transfer-encoding");
     if (it != request_.headers.end())
     {
