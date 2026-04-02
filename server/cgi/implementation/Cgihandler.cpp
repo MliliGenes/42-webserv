@@ -1,45 +1,5 @@
 #include "../include/Cgihandler.hpp"
 
-#include <cerrno>
-#include <csignal>
-#include <cstring>
-#include <ctime>
-#include <exception>
-#include <fcntl.h>
-#include <poll.h>
-#include <sstream>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
-class scoped_sigpipe_ignore
-{
-	public:
-		scoped_sigpipe_ignore() : enabled(false)
-		{
-			struct sigaction action;
-			std::memset(&action, 0, sizeof(action));
-			action.sa_handler = SIG_IGN;
-			sigemptyset(&action.sa_mask);
-			if (::sigaction(SIGPIPE, &action, &old_action) == 0)
-			{
-				enabled = true;
-			}
-		}
-
-		~scoped_sigpipe_ignore()
-		{
-			if (enabled)
-			{
-				::sigaction(SIGPIPE, &old_action, NULL);
-			}
-		}
-
-	private:
-		bool enabled;
-		struct sigaction old_action;
-};
-
 static void close_fd(int& fd)
 {
 	if (fd >= 0)

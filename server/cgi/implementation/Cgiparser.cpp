@@ -1,29 +1,19 @@
 #include "../include/Cgiparser.hpp"
 
-#include <cctype>
-#include <exception>
-#include <sstream>
-
 static std::string trim(const std::string& value)
 {
 	size_t begin = 0;
 	while (begin < value.size()
 		&& std::isspace(static_cast<unsigned char>(value[begin])))
-	{
 		++begin;
-	}
 
 	if (begin == value.size())
-	{
 		return "";
-	}
 
 	size_t end = value.size();
 	while (end > begin
 		&& std::isspace(static_cast<unsigned char>(value[end - 1])))
-	{
 		--end;
-	}
 
 	return value.substr(begin, end - begin);
 }
@@ -45,16 +35,12 @@ static std::string to_lower(const std::string& value)
 static bool parse_status_from_http_line(const std::string& line, int& status_code)
 {
 	if (line.compare(0, 5, "HTTP/") != 0)
-	{
 		return false;
-	}
 
 	std::istringstream stream(line);
 	std::string http_version;
 	if (!(stream >> http_version >> status_code))
-	{
 		return false;
-	}
 
 	return (status_code >= 100 && status_code <= 599);
 }
@@ -63,10 +49,7 @@ static bool parse_status_header_value(const std::string& value, int& status_code
 {
 	std::istringstream stream(value);
 	if (!(stream >> status_code))
-	{
 		return false;
-	}
-
 	return (status_code >= 100 && status_code <= 599);
 }
 
@@ -131,27 +114,19 @@ bool cgiparser::parse(const std::string& raw_output,
 
 			line = trim(line);
 			if (line.empty())
-			{
 				continue;
-			}
 
 			if (parse_status_from_http_line(line, response.status_code))
-			{
 				continue;
-			}
 
 			size_t colon_pos = line.find(':');
 			if (colon_pos == std::string::npos)
-			{
 				continue;
-			}
 
 			std::string key = trim(line.substr(0, colon_pos));
 			std::string value = trim(line.substr(colon_pos + 1));
 			if (key.empty())
-			{
 				continue;
-			}
 
 			if (to_lower(key) == "status")
 			{

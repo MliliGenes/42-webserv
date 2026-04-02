@@ -1,10 +1,10 @@
 #pragma once
 
-#ifndef CGIPARSER_HPP
-# define CGIPARSER_HPP
-
 # include <map>
 # include <string>
+#include <cctype>
+#include <exception>
+#include <sstream>
 
 struct cgiresponse
 {
@@ -25,5 +25,3 @@ class cgiparser
 			cgiresponse& response,
 			std::string& error) const;
 };
-
-#endif
