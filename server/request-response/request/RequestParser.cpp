@@ -152,7 +152,7 @@ int RequestParser::parseHeaders()
         error_code_ = 400;
         return -1;
     }
-    
+
     it = request_.headers.find("transfer-encoding");
     if (it != request_.headers.end())
     {
@@ -182,6 +182,10 @@ int RequestParser::parseHeaders()
         }
     }
 
+    it = request_.headers.find("Connection");
+    if (it == request_.headers.end()){
+        request_.headers["Connection"] = "keep-alive";
+    }
     headers_parsed_ = true;
      return 1;
 
