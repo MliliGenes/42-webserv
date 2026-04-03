@@ -51,34 +51,22 @@ cgirequest::cgirequest() : method("GET") {}
 
 cgihandler::cgihandler() {}
 
-bool cgihandler::execute(const cgirequest& request,
-	cgiresponse& response,
-	std::string& error,
-	int timeout_seconds) const
+bool cgihandler::execute(const cgirequest& request, cgiresponse& response, std::string& error, int timeout_seconds) const
 {
 	try
 	{
 		error.clear();
 		response = cgiresponse();
-
 		if (!validate_request(request, error))
-		{
 			return false;
-		}
-
 		std::string raw_output;
 		std::vector<std::string> environment = build_environment(request);
-		if (!run_process(request, environment, raw_output, error, timeout_seconds))
-		{
-			return false;
-		}
 
+		if (!run_process(request, environment, raw_output, error, timeout_seconds))
+			return false;
 		cgiparser parser;
 		if (!parser.parse(raw_output, response, error))
-		{
 			return false;
-		}
-
 		return true;
 	}
 	catch (const std::exception& e)
@@ -165,11 +153,7 @@ std::vector<std::string> cgihandler::build_environment(const cgirequest& request
 	return result;
 }
 
-bool cgihandler::run_process(const cgirequest& request,
-	const std::vector<std::string>& environment,
-	std::string& raw_output,
-	std::string& error,
-	int timeout_seconds) const
+bool cgihandler::run_process(const cgirequest& request, const std::vector<std::string>& environment, std::string& raw_output, std::string& error, int timeout_seconds) const
 {
 	scoped_sigpipe_ignore sigpipe_guard;
 
