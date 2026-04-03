@@ -91,7 +91,6 @@ bool cgiparser::parse(const std::string& raw_output,
 			error = "CGI script returned an empty output.";
 			return false;
 		}
-
 		size_t separator_length = 0;
 		size_t separator_pos = find_header_separator(raw_output, separator_length);
 		if (separator_pos == std::string::npos)
@@ -99,7 +98,6 @@ bool cgiparser::parse(const std::string& raw_output,
 			response.body = raw_output;
 			return true;
 		}
-
 		std::string header_part = raw_output.substr(0, separator_pos);
 		response.body = raw_output.substr(separator_pos + separator_length);
 

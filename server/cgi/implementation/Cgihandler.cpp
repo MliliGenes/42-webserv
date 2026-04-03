@@ -57,11 +57,10 @@ bool cgihandler::execute(const cgirequest& request, cgiresponse& response, std::
 	{
 		error.clear();
 		response = cgiresponse();
-		if (!validate_request(request, error))
-			return false;
+		// if (!validate_request(request, error))
+		// 	return false; // noo need for this sinc adnnane ki validi requist for the cgi 
 		std::string raw_output;
 		std::vector<std::string> environment = build_environment(request);
-
 		if (!run_process(request, environment, raw_output, error, timeout_seconds))
 			return false;
 		cgiparser parser;
