@@ -1,11 +1,9 @@
 #include "ResponseBuilder.hpp"
+#include "Response.hpp"
 
-ResponseBuilder::ResponseBuilder(SessionManager& session) : sessions_(session){
+ResponseBuilder::ResponseBuilder(SessionManager& session) : sessions_(session){}
 
-}
-
-Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& config)
-{
+Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& config, cgihandler& cgi){
 
     const LocationConfig* route = matchRoute(req.path, config);
     if(!route)
@@ -24,9 +22,9 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
         return buildError(405, config);
     
     Response res;
-    if (req.method == "GET")  res = handleGet(req, *route, config);
-    else if (req.method == "POST")  res = handlePost(req, *route, config);
-    else if (req.method == "DELETE")  res = handleDelete(req, *route, config);
+    if (req.method == "GET")  res = handleGet(req, *route, config, cgi);
+    else if (req.method == "POST")  res = handlePost(req, *route, config, cgi);
+    else if (req.method == "DELETE")  res = handleDelete(req, *route, config, cgi);
     else return res = buildError(405, config);
 
     applySessionCookie(req, res);
@@ -34,9 +32,7 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
     return res;
 }
 
-
-void ResponseBuilder::applySessionCookie(const Request& req, Response& res)
-{
+void ResponseBuilder::applySessionCookie(const Request& req, Response& res){
     std::map<std::string, std::string>::const_iterator it;
     it = req.headers.find("cookie");
     if (it != req.headers.end()){
@@ -49,8 +45,7 @@ void ResponseBuilder::applySessionCookie(const Request& req, Response& res)
     res.headers["Set-Cookie"] = SessionManager::buildCookieHeader(sID);
 }
 
-const LocationConfig* ResponseBuilder::matchRoute(const std::string& path, const ServerConfig& config) const
-{
+const LocationConfig* ResponseBuilder::matchRoute(const std::string& path, const ServerConfig& config) const{
     const LocationConfig* best = NULL;
     std::size_t best_len = 0;
 
@@ -69,14 +64,13 @@ const LocationConfig* ResponseBuilder::matchRoute(const std::string& path, const
     return best;
 }
 
-Response ResponseBuilder::buildError(int code, const ServerConfig& config)
-{
+Response ResponseBuilder::buildError(int code, const ServerConfig& config){
      std::string body;
      
      std::map<int, std::string>::const_iterator it = config.errorPages.find(code);
      if (it != config.errorPages.end() && fileExists(it->second))
         body = readFile(it->second);
-    else{
+     else{
         std::ostringstream oss;
         oss << "<html><head><title>" 
         << code << " " << statusMessage(code) 
@@ -98,8 +92,7 @@ Response ResponseBuilder::buildError(int code, const ServerConfig& config)
 }
 
 Response ResponseBuilder::handleGet(const Request&       req, const LocationConfig& route,
-                                    const ServerConfig&   config)
-{
+                                    const ServerConfig&   config, cgihandler& cgi){
     std::string root = route.root.empty() ? config.root : route.root;
     std::string fs_path = resolve_path(root, req.path);
 
@@ -114,8 +107,28 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
             it = route.cgi.find(ext);
             if (it != route.cgi.end())
             {
-                // std::string cgioutput = handleCgi(req, fs_path, it->second);//abdenour's cgi handler it can be a method in an obj inside my obj 
-                // return buildeResfromOutput(cgioutput, config);
+				cgirequest	cgireq;
+				cgiresponse	cgires;
+				std::string error = "0";
+
+				cgireq.query_string = req.query;
+				cgireq.body = req.body;
+				cgireq.content_type = "text/html";
+				cgireq.interpreter_path = it->second;
+				cgireq.script_path = fs_path;
+				cgireq.method = req.method;
+				// cgireq.working_directory = ?????
+
+				bool st = cgi.execute(cgireq, cgires, error);// i don't get error and timeout_seconds???
+
+				Response res;
+
+				res.body = cgires.body;
+				res.status_code = cgires.status_code;
+				res.status_message = statusMessage(res.status_code);
+				res.headers = cgires.headers;		
+
+                return res;
             }
         }
     }
@@ -164,7 +177,7 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
 }
 
 Response ResponseBuilder::handlePost(const Request&      req, const LocationConfig& route,
-                                    const ServerConfig&  config)
+                                    const ServerConfig&  config, cgihandler& cgi)
 {
     
     std::string root = route.root.empty() ? config.root : route.root;
@@ -178,8 +191,28 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
             std::map<std::string, std::string>::const_iterator it;
             it = route.cgi.find(ext);
             if (it != route.cgi.end()){
-                // std::string cgioutput = handleCgi(req, fs_path, it->second);//abdenour's cgi handler it can be a method in an obj inside my obj 
-               // return buildeResfromOutput(cgioutput, config);
+				cgirequest	cgireq;
+				cgiresponse	cgires;
+				std::string error = "0";
+
+				cgireq.query_string = req.query;
+				cgireq.body = req.body;
+				cgireq.content_type = "text/html";
+				cgireq.interpreter_path = it->second;
+				cgireq.script_path = fs_path;
+				cgireq.method = req.method;
+				// cgireq.working_directory = ?????
+
+				bool st = cgi.execute(cgireq, cgires, error);// i don't get error and timeout_seconds???
+
+				Response res;
+
+				res.body = cgires.body;
+				res.status_code = cgires.status_code;
+				res.status_message = statusMessage(res.status_code);
+				res.headers = cgires.headers;		
+
+                return res;
             }       
         }
     }
@@ -220,7 +253,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
 }
 
 Response ResponseBuilder::handleDelete(const Request&      req, const LocationConfig& route,
-                          const ServerConfig&  config)
+                          const ServerConfig&  config, cgihandler& cgi)
 {
     std::string root = route.root.empty() ? config.root : route.root;
     std::string fs_path = resolve_path(root, req.path);
@@ -282,7 +315,7 @@ Response ResponseBuilder::buildeResfromOutput(std::string raw, const ServerConfi
         raw_headers = raw.substr(0, pos);
         body = raw.substr(pos + 4);
     }
-    else if(pos = raw.find("\n\n") != std::string::npos)
+    else if((pos = raw.find("\n\n")) != std::string::npos)
     {
         raw_headers = raw.substr(0, pos);
         body = raw.substr(pos + 2);
