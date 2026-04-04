@@ -2,6 +2,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <utility>
 #include <cstring>
 #include <csignal>
 #include <sstream>
@@ -32,7 +33,7 @@ struct CgiResponse
 {
     int status;
     std::string body;
-    std::map<std::string, std::string>  headers;
+    std::vector<std::pair<std::string, std::string> > headers;
 
     CgiResponse();
 };

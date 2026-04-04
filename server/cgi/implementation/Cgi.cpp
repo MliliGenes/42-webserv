@@ -1,7 +1,5 @@
 #include "../include/Cgi.hpp"
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
 static void safe_close(int& fd)
 {
     if (fd >= 0) { ::close(fd); fd = -1; }
@@ -44,8 +42,7 @@ CgiResponse::CgiResponse() : status(200) {}
 
 CgiHandler::CgiHandler() {}
 
-bool CgiHandler::execute(const CgiRequest& req, CgiResponse& res,
-                         std::string& err, int timeout_sec) const
+bool CgiHandler::execute(const CgiRequest& req, CgiResponse& res, std::string& err, int timeout_sec) const
 {
     err.clear();
     res = CgiResponse();
@@ -99,7 +96,11 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
     std::memset(&sa, 0, sizeof(sa));
     sa.sa_handler = SIG_IGN;
     sigemptyset(&sa.sa_mask);
-    ::sigaction(SIGPIPE, &sa, &old_sa);
+    if (::sigaction(SIGPIPE, &sa, &old_sa) != 0) // handling the fail of the sigaction
+    {
+        err = std::string("sigaction: ") + std::strerror(errno);
+        return false;
+    }
 
     if (::pipe(in_p) != 0 || ::pipe(out_p) != 0) {
         err = std::string("pipe: ") + std::strerror(errno);
@@ -117,8 +118,10 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
     pid_t pid = ::fork();
     if (pid < 0) {
         err = std::string("fork: ") + std::strerror(errno);
-        safe_close(in_p[0]);  safe_close(in_p[1]);
-        safe_close(out_p[0]); safe_close(out_p[1]);
+        safe_close(in_p[0]);  
+        safe_close(out_p[0]);
+        safe_close(out_p[1]);
+        safe_close(in_p[1]);
         ::sigaction(SIGPIPE, &old_sa, NULL);
         return false;
     }
@@ -126,13 +129,20 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
     //CHILD 
     if (pid == 0)
     {
-        ::dup2(in_p[0],  STDIN_FILENO);
-        ::dup2(out_p[1], STDOUT_FILENO);
-        safe_close(in_p[0]);  safe_close(in_p[1]);
-        safe_close(out_p[0]); safe_close(out_p[1]);
+        if (::dup2(in_p[0], STDIN_FILENO) < 0 || ::dup2(out_p[1], STDOUT_FILENO) < 0) 
+            ::_exit(126);
+        safe_close(in_p[0]);  
+        safe_close(out_p[0]);
+        safe_close(out_p[1]);
+        safe_close(in_p[1]);
 
         if (!req.cwd.empty())
-            ::chdir(req.cwd.c_str());
+        {
+            if (::chdir(req.cwd.c_str()) != 0)
+                ::_exit(126);
+        }
+        if (::sigaction(SIGPIPE, &old_sa, NULL) != 0)
+            ::_exit(127);
         char* argv[3];
         if (req.interpreter.empty())
         {
@@ -148,10 +158,8 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
         ::_exit(127);
     }
 
-    // ── parent ───────────────────────────────────────────────────────────────
     safe_close(in_p[0]);
     safe_close(out_p[1]);
-
     int wfd = in_p[1];
     int rfd = out_p[0];
 
@@ -259,9 +267,7 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
     return true;
 }
 
-bool CgiHandler::parseOutput(const std::string& raw,
-                              CgiResponse& res,
-                              std::string& err) const
+bool CgiHandler::parseOutput(const std::string& raw, CgiResponse& res, std::string& err) const
 {
     if (raw.empty()) 
 	{
@@ -308,7 +314,7 @@ bool CgiHandler::parseOutput(const std::string& raw,
             vs >> res.status;
             continue;
         }
-        res.headers[key] = val;
+        res.headers.push_back(std::make_pair(key, val));
     }
     return true;
 }
