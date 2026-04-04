@@ -34,7 +34,6 @@ struct CgiResponse
     int status;
     std::string body;
     std::vector<std::pair<std::string, std::string> > headers;
-
     CgiResponse();
 };
 

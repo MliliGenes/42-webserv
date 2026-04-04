@@ -149,7 +149,9 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
             argv[0] = const_cast<char*>(req.script.c_str());
             argv[1] = NULL;
             ::execve(argv[0], argv, &envp[0]);
-        } else {
+        }
+        else
+        {
             argv[0] = const_cast<char*>(req.interpreter.c_str());
             argv[1] = const_cast<char*>(req.script.c_str());
             argv[2] = NULL;
