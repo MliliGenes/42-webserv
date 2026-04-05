@@ -101,7 +101,6 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
         err = std::string("sigaction: ") + std::strerror(errno);
         return false;
     }
-
     if (::pipe(in_p) != 0 || ::pipe(out_p) != 0) {
         err = std::string("pipe: ") + std::strerror(errno);
         safe_close(in_p[0]);  safe_close(in_p[1]);
@@ -125,7 +124,6 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
         ::sigaction(SIGPIPE, &old_sa, NULL);
         return false;
     }
-
     //CHILD 
     if (pid == 0)
     {

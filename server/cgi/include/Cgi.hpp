@@ -19,12 +19,12 @@
 struct CgiRequest
 {
     std::string method;
-    std::string script;
+    std::string script; // hna store path dyal script
     std::string interpreter;
     std::string query;
     std::string content_type;
     std::string body;
-    std::string cwd;
+    std::string cwd; // hna directory 
     std::map<std::string, std::string> extra_env;
     CgiRequest();
 };
