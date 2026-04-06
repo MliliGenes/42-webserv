@@ -2,11 +2,12 @@
 #define RESPONSE_BUILDER_HPP
 
 
-#include "Request.hpp"
-#include "RequestParser.hpp"
+#include "../request/Request.hpp"
+#include "../../cgi/include/Cgihandler.hpp"
 #include "Response.hpp"
-#include "../server/core/Config.hpp"
+#include "../../core/Config.hpp"
 #include "../cookie-session/SessionManager.hpp"
+#include "../request/RequestParser.hpp"
 #include <string>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -18,7 +19,7 @@ class ResponseBuilder {
         ResponseBuilder(SessionManager& sessions);
 
         
-        Response dispatch(const Request& req, const ServerConfig& config);
+        Response dispatch(const Request& req, const ServerConfig& config, cgihandler& cgi);
         Response buildError(int code, const ServerConfig& config);
 
     private:
@@ -42,15 +43,15 @@ class ResponseBuilder {
         
         Response    handleGet(const Request&      req,
                        const LocationConfig& route,
-                       const ServerConfig&  config);
+                       const ServerConfig&  config, cgihandler& cgi);
 
         Response    handlePost(const Request&      req,
                         const LocationConfig& route,
-                        const ServerConfig&  config);
+                        const ServerConfig&  config, cgihandler& cgi);
 
         Response    handleDelete(const Request&      req,
                           const LocationConfig& route,
-                          const ServerConfig&  config);
+                          const ServerConfig&  config, cgihandler& cgi);
         //bonus
 
         SessionManager& sessions_; //this attribut where i store the sessions
