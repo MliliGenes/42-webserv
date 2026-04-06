@@ -1,6 +1,10 @@
 #include "RequestParser.hpp"
 #include <sstream>
 #include <cstdlib>
+#include <cctype>
+
+static const char* allowedMethode[] = {"POST", "GET", "DELETE", NULL};
+static const char* allowedVersion[] = {"HTTP/1.1", "HTTP/1.0", NULL};
 
 
 RequestParser::~RequestParser() {}
@@ -147,7 +151,7 @@ int RequestParser::parseHeaders()
     }
 
     std::map<std::string, std::string>::const_iterator it;
-    it = request_.headers.find("Host:");
+    it = request_.headers.find("host");
     if(it == request_.headers.end()){
         error_code_ = 400;
         return -1;
@@ -182,9 +186,9 @@ int RequestParser::parseHeaders()
         }
     }
 
-    it = request_.headers.find("Connection");
+    it = request_.headers.find("connection");
     if (it == request_.headers.end()){
-        request_.headers["Connection"] = "keep-alive";
+        request_.headers["connection"] = "keep-alive";
     }
     headers_parsed_ = true;
      return 1;
@@ -297,7 +301,7 @@ std::string RequestParser::ft_toLower(const std::string& s) {
     std::string out = s;
     for (std::size_t i = 0; i < out.size(); ++i) {
         if (out[i] >= 'A' && out[i] <= 'Z')
-            out[i] = std::tolower(out[i]);
+            out[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(out[i])));
     }
     return out;
 }

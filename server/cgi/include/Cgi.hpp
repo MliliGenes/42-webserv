@@ -10,6 +10,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <cerrno>
+#include <exception>
 #include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
@@ -19,19 +20,19 @@
 struct CgiRequest
 {
     std::string method;
-    std::string script; // hna store path dyal script
-    std::string interpreter;
-    std::string query;
+    std::string script_path;
+    std::string interpreter_path;
+    std::string query_string;
     std::string content_type;
     std::string body;
-    std::string cwd; // hna directory 
+    std::string working_directory;
     std::map<std::string, std::string> extra_env;
     CgiRequest();
 };
 
 struct CgiResponse
 {
-    int status;
+    int status_code;
     std::string body;
     std::vector<std::pair<std::string, std::string> > headers;
     CgiResponse();
@@ -43,10 +44,14 @@ public:
     CgiHandler();
     // ~CgiHandler(); nzid 5 const later
 
-    bool    execute(const CgiRequest& req, CgiResponse& res, std::string& err, int timeout_sec) const;
+    bool    execute(const CgiRequest& req, CgiResponse& res, std::string& err, int timeout_sec = 5) const;
 
 private:
     std::vector<std::string> buildEnv(const CgiRequest& req) const;
     bool    runProcess(const CgiRequest& req, const std::vector<std::string>& env, std::string& raw, std::string& err, int timeout_sec) const;
     bool    parseOutput(const std::string& raw, CgiResponse& res, std::string& err) const;
 };
+
+typedef CgiRequest  cgirequest;
+typedef CgiResponse cgiresponse;
+typedef CgiHandler  cgihandler;

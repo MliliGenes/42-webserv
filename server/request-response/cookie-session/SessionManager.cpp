@@ -1,4 +1,5 @@
 #include "SessionManager.hpp"
+#include <cstdlib>
 
 SessionManager::SessionManager()
 {
@@ -7,16 +8,16 @@ SessionManager::SessionManager()
 
 session*    SessionManager::get(const std::string& ID)
 {
-    std::map<std::string, session>::const_iterator it;
+    std::map<std::string, session>::iterator it;
     it = sessions_.find(ID);
     if (it == sessions_.end())
         return NULL;
     if (std::time(NULL) - it->second.last_access > SESSION_TTL){
-        sessions_.erase(ID);
+        sessions_.erase(it);
         return NULL;
     }
-    session s = it->second;
-    return &s;
+    it->second.last_access = std::time(NULL);
+    return &it->second;
 }
 std::string SessionManager::create()
 {
@@ -32,12 +33,12 @@ std::string SessionManager::Extract_ID(const std::string& cookie)
     std::size_t pos = cookie.find("session_id=");
     if (pos == std::string::npos)
         return std::string();
-    std::size_t end_pos = cookie.find(";", pos + 11);
+    pos += 11;
+    std::size_t end_pos = cookie.find(";", pos);
     if (end_pos == std::string::npos)
         return cookie.substr(pos);
 
-    std::string key = cookie.substr(pos, end_pos - pos);
-    return key;
+    return cookie.substr(pos, end_pos - pos);
 }
 std::string SessionManager::buildCookieHeader(const std::string& ID)
 {

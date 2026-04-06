@@ -4,9 +4,6 @@
 #include "Request.hpp"
 #include <string>
 
-static const char* allowedMethode[] = {"POST", "GET", "DELETE", NULL};
-static const char* allowedVersion[] = {"HTTP/1.1", "HTTP/1.0", NULL};
-
 class RequestParser {
 
     public:

@@ -38,23 +38,35 @@ static std::string str_lower(const std::string& s)
 
 CgiRequest::CgiRequest() : method("GET") {}
 
-CgiResponse::CgiResponse() : status(200) {}
+CgiResponse::CgiResponse() : status_code(200) {}
 
 CgiHandler::CgiHandler() {}
 
 bool CgiHandler::execute(const CgiRequest& req, CgiResponse& res, std::string& err, int timeout_sec) const
 {
-    err.clear();
-    res = CgiResponse();
+    try
+    {
+        err.clear();
+        res = CgiResponse();
 
-    std::string raw;
-    std::vector<std::string> env = buildEnv(req);
+        std::string raw;
+        std::vector<std::string> env = buildEnv(req);
 
-    if (!runProcess(req, env, raw, err, timeout_sec))
-        return false;
-    if (!parseOutput(raw, res, err))
-        return false;
-    return true;
+        if (!runProcess(req, env, raw, err, timeout_sec))
+            return false;
+        if (!parseOutput(raw, res, err))
+            return false;
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        err = e.what();
+    }
+    catch (...)
+    {
+        err = "unknown CGI error";
+    }
+    return false;
 }
 
 std::vector<std::string> CgiHandler::buildEnv(const CgiRequest& req) const
@@ -64,9 +76,9 @@ std::vector<std::string> CgiHandler::buildEnv(const CgiRequest& req) const
     env.push_back("GATEWAY_INTERFACE=CGI/1.1");
     env.push_back("SERVER_PROTOCOL=HTTP/1.1");
     env.push_back("REQUEST_METHOD=" + (req.method.empty() ? "GET" : req.method));
-    env.push_back("SCRIPT_FILENAME=" + req.script);
-    env.push_back("SCRIPT_NAME=" + req.script);
-    env.push_back("QUERY_STRING=" + req.query);
+    env.push_back("SCRIPT_FILENAME=" + req.script_path);
+    env.push_back("SCRIPT_NAME=" + req.script_path);
+    env.push_back("QUERY_STRING=" + req.query_string);
     env.push_back("CONTENT_LENGTH=" + itoa_str(req.body.size()));
     env.push_back("REDIRECT_STATUS=200");
 
@@ -134,24 +146,24 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
         safe_close(out_p[1]);
         safe_close(in_p[1]);
 
-        if (!req.cwd.empty())
+        if (!req.working_directory.empty())
         {
-            if (::chdir(req.cwd.c_str()) != 0)
+            if (::chdir(req.working_directory.c_str()) != 0)
                 ::_exit(126);
         }
         if (::sigaction(SIGPIPE, &old_sa, NULL) != 0)
             ::_exit(127);
         char* argv[3];
-        if (req.interpreter.empty())
+        if (req.interpreter_path.empty())
         {
-            argv[0] = const_cast<char*>(req.script.c_str());
+            argv[0] = const_cast<char*>(req.script_path.c_str());
             argv[1] = NULL;
             ::execve(argv[0], argv, &envp[0]);
         }
         else
         {
-            argv[0] = const_cast<char*>(req.interpreter.c_str());
-            argv[1] = const_cast<char*>(req.script.c_str());
+            argv[0] = const_cast<char*>(req.interpreter_path.c_str());
+            argv[1] = const_cast<char*>(req.script_path.c_str());
             argv[2] = NULL;
             ::execve(argv[0], argv, &envp[0]);
         }
@@ -300,7 +312,7 @@ bool CgiHandler::parseOutput(const std::string& raw, CgiResponse& res, std::stri
 		{
             std::istringstream ls(line);
             std::string ver;
-            ls >> ver >> res.status;
+            ls >> ver >> res.status_code;
             continue;
         }
         size_t colon = line.find(':');
@@ -311,7 +323,7 @@ bool CgiHandler::parseOutput(const std::string& raw, CgiResponse& res, std::stri
         if (str_lower(key) == "status")
         {
             std::istringstream vs(val);
-            vs >> res.status;
+            vs >> res.status_code;
             continue;
         }
         res.headers.push_back(std::make_pair(key, val));
