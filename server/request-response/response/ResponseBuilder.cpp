@@ -219,7 +219,7 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
     {
         Response res;
         res.status_code = 200;
-        res.status_message = "ok";
+        res.status_message = statusMessage(200);
         res.body = readFile(fs_path);
         res.headers["Content-Length"] = sizeToString(res.body.size());
         res.headers["Content-Type"] = getType(fs_path);
