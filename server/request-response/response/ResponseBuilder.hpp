@@ -36,7 +36,6 @@ class ResponseBuilder {
         bool        isDirectory(const std::string& path);
         bool        fileExists(const std::string& path) const;
         bool        writeFile(std::string path, std::string content);
-        Response    buildeResfromOutput(std::string raw, const ServerConfig& config);
 
         Response    listsDirectory(const std::string& fs_path, const std::string& req_path);
 

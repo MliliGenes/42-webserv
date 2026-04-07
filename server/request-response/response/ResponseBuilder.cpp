@@ -361,62 +361,6 @@ std::string ResponseBuilder::resolve_path(std::string root, std::string path)
     return result;
 }
 
-Response ResponseBuilder::buildeResfromOutput(std::string raw, const ServerConfig& config)
-{
-    if (raw.empty())
-        return buildError(500, config);
-    
-    std::string raw_headers;
-    std::string body;
-
-    std::size_t pos = raw.find("\r\n\r\n");
-    if (pos != std::string::npos)
-    {
-        raw_headers = raw.substr(0, pos);
-        body = raw.substr(pos + 4);
-    }
-    else if((pos = raw.find("\n\n")) != std::string::npos)
-    {
-        raw_headers = raw.substr(0, pos);
-        body = raw.substr(pos + 2);
-    }
-    else
-        body = raw;
-    
-    Response res;
-    res.body = body;
-    res.status_code = 200;
-    res.status_message = statusMessage(200);
-
-    std::istringstream iss(raw_headers);
-    std::string line;
-    while (std::getline(iss, line))
-    {
-        if (!line.empty() && line[line.size() - 1] == '\r')
-            line.erase(line.size() - 1);
-        else if (line.empty())
-            break;
-        
-        std::size_t colon = line.find(':');
-        if (colon == std::string::npos)
-            continue;
-        
-        std::string name = RequestParser::ft_trim(RequestParser::ft_toLower(line.substr(0, colon)));
-        std::string value = RequestParser::ft_trim(line.substr(0, colon));
-
-        if (name == "status")
-        {
-            std::istringstream iss(value);
-            iss >> res.status_code;
-            res.status_message = statusMessage(res.status_code);
-        } else{
-            res.headers[name] = value;
-        }
-    }
-
-    res.headers["Content-Length"] = sizeToString(body.size());
-    return res;
-}
 
 Response ResponseBuilder::listsDirectory(const std::string& fs_path, const std::string& req_path)
 {
