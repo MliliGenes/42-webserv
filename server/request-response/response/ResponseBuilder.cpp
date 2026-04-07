@@ -22,17 +22,46 @@ static std::string cgiHeaderName(const std::string& name)
     return result;
 }
 
+static std::string cgiServerName(const Request& req, const ServerConfig& config)
+{
+    std::map<std::string, std::string>::const_iterator it = req.headers.find("host");
+    if (it != req.headers.end() && !it->second.empty())
+    {
+        std::string host = it->second;
+        std::size_t colon = host.find(':');
+        if (colon != std::string::npos)
+            host = host.substr(0, colon);
+        if (!host.empty())
+            return host;
+    }
+
+    if (!config.serverNames.empty() && !config.serverNames.front().empty())
+        return config.serverNames.front();
+    if (!config.host.empty())
+        return config.host;
+    return "localhost";
+}
+
 static void fillCgiRequest(const Request& req, const std::string& script_path,
                            const std::string& working_directory,
                            const std::string& interpreter_path,
+                           const ServerConfig& config,
                            cgirequest& cgireq)
 {
     cgireq.method = req.method;
     cgireq.script_path = script_path;
+    cgireq.script_name = req.path;
+    cgireq.path_info.clear();
     cgireq.interpreter_path = interpreter_path;
     cgireq.query_string = req.query;
     cgireq.body = req.body;
     cgireq.working_directory = working_directory;
+    cgireq.server_name = cgiServerName(req, config);
+
+    std::ostringstream port;
+    port << config.port;
+    cgireq.server_port = port.str();
+    cgireq.server_protocol = req.version.empty() ? "HTTP/1.1" : req.version;
 
     std::map<std::string, std::string>::const_iterator it = req.headers.find("content-type");
     if (it != req.headers.end())
@@ -161,7 +190,7 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
                 if (slash != std::string::npos)
                     working_directory = fs_path.substr(0, slash);
 
-                fillCgiRequest(req, fs_path, working_directory, it->second, cgireq);
+                fillCgiRequest(req, fs_path, working_directory, it->second, config, cgireq);
 
                 bool st = cgi.execute(cgireq, cgires, error);
                 if (!st)
@@ -254,7 +283,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
                 if (slash != std::string::npos)
                     working_directory = fs_path.substr(0, slash);
 
-                fillCgiRequest(req, fs_path, working_directory, it->second, cgireq); // zidt hadi kn 3amar biha data f class d cgi
+                fillCgiRequest(req, fs_path, working_directory, it->second, config, cgireq); // zidt hadi kn 3amar biha data f class d cgi
                 bool st = cgi.execute(cgireq, cgires, error);
                 if (!st)
                 {

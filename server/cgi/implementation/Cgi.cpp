@@ -74,12 +74,15 @@ std::vector<std::string> CgiHandler::buildEnv(const CgiRequest& req) const
     std::vector<std::string> env;
 
     env.push_back("GATEWAY_INTERFACE=CGI/1.1");
-    env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+    env.push_back("SERVER_PROTOCOL=" + (req.server_protocol.empty() ? "HTTP/1.1" : req.server_protocol));
     env.push_back("REQUEST_METHOD=" + (req.method.empty() ? "GET" : req.method));
+    env.push_back("PATH_INFO=" + req.path_info);
     env.push_back("SCRIPT_FILENAME=" + req.script_path);
-    env.push_back("SCRIPT_NAME=" + req.script_path);
+    env.push_back("SCRIPT_NAME=" + req.script_name);
     env.push_back("QUERY_STRING=" + req.query_string);
     env.push_back("CONTENT_LENGTH=" + itoa_str(req.body.size()));
+    env.push_back("SERVER_NAME=" + req.server_name);
+    env.push_back("SERVER_PORT=" + req.server_port);
     env.push_back("REDIRECT_STATUS=200");
 
     if (!req.content_type.empty())
