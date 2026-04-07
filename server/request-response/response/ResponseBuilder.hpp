@@ -3,7 +3,7 @@
 
 
 #include "../request/Request.hpp"
-#include "../../cgi/include/Cgihandler.hpp"
+#include "../../cgi/include/Cgi.hpp"
 #include "Response.hpp"
 #include "../../core/Config.hpp"
 #include "../cookie-session/SessionManager.hpp"

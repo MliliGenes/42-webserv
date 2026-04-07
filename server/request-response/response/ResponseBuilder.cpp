@@ -1,5 +1,49 @@
+#include <iostream>
+#include <fstream>
+#include <cstdio>
+#include <cctype>
 #include "ResponseBuilder.hpp"
 #include "Response.hpp"
+
+static std::string cgiHeaderName(const std::string& name)
+{
+    std::string result = "HTTP_";
+    for (std::size_t i = 0; i < name.size(); ++i)
+    {
+        char c = name[i];
+        if (c == '-')
+            result += '_';
+        else if (c >= 'a' && c <= 'z')
+            result += static_cast<char>(c - 'a' + 'A');
+        else
+            result += c;
+    }
+    return result;
+}
+
+static void fillCgiRequest(const Request& req, const std::string& script_path,
+                           const std::string& working_directory,
+                           const std::string& interpreter_path,
+                           cgirequest& cgireq)
+{
+    cgireq.method = req.method;
+    cgireq.script_path = script_path;
+    cgireq.interpreter_path = interpreter_path;
+    cgireq.query_string = req.query;
+    cgireq.body = req.body;
+    cgireq.working_directory = working_directory;
+
+    std::map<std::string, std::string>::const_iterator it = req.headers.find("content-type");
+    if (it != req.headers.end())
+        cgireq.content_type = it->second;
+
+    for (it = req.headers.begin(); it != req.headers.end(); ++it)
+    {
+        if (it->first == "content-type" || it->first == "content-length")
+            continue;
+        cgireq.extra_env[cgiHeaderName(it->first)] = it->second;
+    }
+}
 
 ResponseBuilder::ResponseBuilder(SessionManager& session) : sessions_(session){}
 
@@ -109,24 +153,33 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
             {
 				cgirequest	cgireq;
 				cgiresponse	cgires;
-				std::string error = "0";
+                std::string error;
 
-				cgireq.query_string = req.query;
-				cgireq.body = req.body;
-				cgireq.content_type = "text/html";
-				cgireq.interpreter_path = it->second;
-				cgireq.script_path = fs_path;
-				cgireq.method = req.method;
-				// cgireq.working_directory = ?????
+                std::string working_directory = root;
+                std::size_t slash = fs_path.rfind('/');
+                if (slash != std::string::npos)
+                    working_directory = fs_path.substr(0, slash);
 
-				bool st = cgi.execute(cgireq, cgires, error);// i don't get error and timeout_seconds???
+                fillCgiRequest(req, fs_path, working_directory, it->second, cgireq);
 
-				Response res;
+                bool st = cgi.execute(cgireq, cgires, error);
+                if (!st)
+                {
+                    std::cout << error << std::endl;
+                    return buildError(500, config);
+                }
+
+				Response res;	
 
 				res.body = cgires.body;
-				res.status_code = cgires.status_code;
+                res.status_code = cgires.status_code;
 				res.status_message = statusMessage(res.status_code);
-				res.headers = cgires.headers;		
+                for (std::vector<std::pair<std::string, std::string> >::const_iterator hdr = cgires.headers.begin();
+                     hdr != cgires.headers.end(); ++hdr)
+                    res.headers[hdr->first] = hdr->second;
+                res.headers["Content-Length"] = sizeToString(res.body.size());
+                if (res.headers.find("Content-Type") == res.headers.end())
+                    res.headers["Content-Type"] = "text/html";
 
                 return res;
             }
@@ -193,24 +246,30 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
             if (it != route.cgi.end()){
 				cgirequest	cgireq;
 				cgiresponse	cgires;
-				std::string error = "0";
+                std::string error;
 
-				cgireq.query_string = req.query;
-				cgireq.body = req.body;
-				cgireq.content_type = "text/html";
-				cgireq.interpreter_path = it->second;
-				cgireq.script_path = fs_path;
-				cgireq.method = req.method;
-				// cgireq.working_directory = ?????
+                std::string working_directory = root;
+                std::size_t slash = fs_path.rfind('/');
+                if (slash != std::string::npos)
+                    working_directory = fs_path.substr(0, slash);
 
-				bool st = cgi.execute(cgireq, cgires, error);// i don't get error and timeout_seconds???
-
+                fillCgiRequest(req, fs_path, working_directory, it->second, cgireq); // zidt hadi kn 3amar biha data f class d cgi
+                bool st = cgi.execute(cgireq, cgires, error);
+                if (!st)
+                {
+                    std::cout << error << std::endl; // error rah string kn amar fiha xmn error w9a3 la st return false
+                    return buildError(500, config);
+                }
 				Response res;
-
 				res.body = cgires.body;
 				res.status_code = cgires.status_code;
 				res.status_message = statusMessage(res.status_code);
-				res.headers = cgires.headers;		
+                for (std::vector<std::pair<std::string, std::string> >::const_iterator hdr = cgires.headers.begin();
+                     hdr != cgires.headers.end(); ++hdr)
+                    res.headers[hdr->first] = hdr->second;
+                res.headers["Content-Length"] = sizeToString(res.body.size());
+                if (res.headers.find("Content-Type") == res.headers.end())
+                    res.headers["Content-Type"] = "text/html";
 
                 return res;
             }       
@@ -255,6 +314,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
 Response ResponseBuilder::handleDelete(const Request&      req, const LocationConfig& route,
                           const ServerConfig&  config, cgihandler& cgi)
 {
+    (void)cgi;
     std::string root = route.root.empty() ? config.root : route.root;
     std::string fs_path = resolve_path(root, req.path);
 

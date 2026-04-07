@@ -20,10 +20,15 @@ HTTP_RES_DIR =
 CGI_DIR = 
 
 ROOT_SRC = $(wildcard *.cpp)
+SERVER_SRC = $(wildcard server/core/*.cpp) \
+		$(wildcard server/cgi/implementation/*.cpp) \
+		$(wildcard server/request-response/request/*.cpp) \
+		$(wildcard server/request-response/response/*.cpp) \
+		$(wildcard server/request-response/cookie-session/*.cpp)
 
-ROOT_OBJ = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(ROOT_SRC))
+SRC = $(ROOT_SRC) $(SERVER_SRC)
 
-ALL_OBJ = $(ROOT_OBJ) 
+ALL_OBJ = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SRC))
 
 TOTAL_FILES = $(words $(ALL_OBJ))
 
