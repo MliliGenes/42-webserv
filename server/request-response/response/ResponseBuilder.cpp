@@ -2,7 +2,6 @@
 #include <fstream>
 #include <cstdio>
 #include <cctype>
-
 #include "ResponseBuilder.hpp"
 #include "Response.hpp"
 
@@ -199,7 +198,7 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
                     return buildError(500, config);
                 }
 
-				Response res;
+				Response res;	
 
 				res.body = cgires.body;
                 res.status_code = cgires.status_code;
