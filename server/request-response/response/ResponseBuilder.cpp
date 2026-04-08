@@ -71,7 +71,8 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
     else if (req.method == "DELETE")  res = handleDelete(req, *route, config, cgi);
     else return res = buildError(405, config);
 
-    applySessionCookie(req, res);
+    if (res.headers.find("Set-Cookie") == res.headers.end())
+        applySessionCookie(req, res);
 
     return res;
 }
@@ -98,7 +99,8 @@ const LocationConfig* ResponseBuilder::matchRoute(const std::string& path, const
         const LocationConfig& loc = config.routes[i];
         const std::string prefix = loc.path;
 
-        if(path.substr(0, prefix.size()) == prefix){
+        if(path == prefix || prefix == "/" || (path.substr(0, prefix.size()) == prefix && 
+            (path.size() > prefix.size() && path[prefix.size()] == '/'))){
             if (prefix.size() > best_len){
                 best_len = prefix.size();
                 best = &loc;
