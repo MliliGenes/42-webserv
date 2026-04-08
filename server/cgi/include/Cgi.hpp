@@ -21,9 +21,14 @@ struct CgiRequest
 {
     std::string method;
     std::string script_path;
+    std::string script_name;
+    std::string path_info;
     std::string interpreter_path;
     std::string query_string;
     std::string content_type;
+    std::string server_name;
+    std::string server_port;
+    std::string server_protocol;
     std::string body;
     std::string working_directory;
     std::map<std::string, std::string> extra_env;
