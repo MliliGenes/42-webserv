@@ -18,7 +18,7 @@ int main (int ac, char ** av) {
 
     if (!parser.parse()) {
         std::cerr << "Failed to parse JSON file." << std::endl;
-        delete lexer;
+        delete  lexer;
         return 1;
     }
 

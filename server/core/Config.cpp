@@ -47,6 +47,50 @@ std::map<int, std::string> get_error_pages(TrpJsonObject* errorPagesObj) {
     return errorPages;
 }
 
+LocationConfig get_location(TrpJsonObject* locationBlock) {
+    LocationConfig locConfig;
+    locConfig.path = static_cast<const TrpJsonString*>(locationBlock->find("path"))->getValue();
+    locConfig.autoindex = locationBlock->find("autoindex") ? static_cast<const TrpJsonBool*>(locationBlock->find("autoindex"))->getValue() : false;
+    locConfig.uploadEnable = locationBlock->find("upload_enable") ? static_cast<const TrpJsonBool*>(locationBlock->find("upload_enable"))->getValue() : false;
+    locConfig.uploadStore = locationBlock->find("upload_store") ? static_cast<const TrpJsonString*>(locationBlock->find("upload_store"))->getValue() : "";
+
+    if (locationBlock->find("methods")) {
+        std::vector<std::string> methods = get_array_of_strings(static_cast<TrpJsonArray*>(locationBlock->find("methods")));
+        locConfig.methods = std::set<std::string>(methods.begin(), methods.end());
+    }
+
+    if (locationBlock->find("root")) {
+        locConfig.root = static_cast<const TrpJsonString*>(locationBlock->find("root"))->getValue();
+    }
+
+    if (locationBlock->find("index")) {
+        locConfig.index = get_array_of_strings(static_cast<TrpJsonArray*>(locationBlock->find("index")));
+    }
+    
+    if (locationBlock->find("cgi")) {
+        TrpJsonObject* cgiObj = static_cast<TrpJsonObject*>(locationBlock->find("cgi"));
+        for (JsonObjectMap::const_iterator it = cgiObj->begin(); it != cgiObj->end(); ++it) {
+            std::string extension = it->first;
+            std::string interpreter = static_cast<TrpJsonString*>(it->second)->getValue();
+            locConfig.cgi[extension] = interpreter;
+        }
+    }
+
+    return locConfig;
+
+}
+
+std::vector<LocationConfig> get_locations(TrpJsonArray* locationsArray) {
+    std::vector<LocationConfig> locations;
+    for (size_t i = 0; i < locationsArray->size(); i++) {
+        TrpJsonObject* locationBlock = static_cast<TrpJsonObject*>(locationsArray->at(i));
+        LocationConfig locConfig = get_location(locationBlock);
+        locations.push_back(locConfig);
+
+    }
+    return locations;
+}
+
 Config::Config(ITrpJsonValue* ast) {
     if (!ast)
         return; // exception later
@@ -74,8 +118,8 @@ Config::Config(ITrpJsonValue* ast) {
             std::string clientMaxBodySizeStr = static_cast<const TrpJsonString*>(serverBlock->find("client_max_body_size"))->getValue();
             serverConfig.clientMaxBodySize = parse_max_body_size(clientMaxBodySizeStr);
 
-            if (serverBlock->find("server_names")) {
-                serverConfig.serverNames = get_array_of_strings(static_cast<TrpJsonArray*>(serverBlock->find("server_names")));
+            if (serverBlock->find("server_name")) {
+                serverConfig.serverNames = get_array_of_strings(static_cast<TrpJsonArray*>(serverBlock->find("server_name")));
             }
 
             if (serverBlock->find("index")) {
@@ -86,8 +130,12 @@ Config::Config(ITrpJsonValue* ast) {
                 serverConfig.errorPages = get_error_pages(static_cast<TrpJsonObject*>(serverBlock->find("error_pages")));
             }
 
+            if (serverBlock->find("locations")) {
+                serverConfig.routes = get_locations(static_cast<TrpJsonArray*>(serverBlock->find("locations")));
+            }
 
             _servers.push_back(serverConfig);
         }
+        std::cout << _servers.size() << " valid server blocks loaded into configuration." << std::endl;
     }
 }
