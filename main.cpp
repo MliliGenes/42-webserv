@@ -2,6 +2,8 @@
 #include "include/TrpSchema.hpp"
 #include "config/configSchema.cpp"
 
+#include "server/core/Config.hpp"
+
 int main (int ac, char ** av) {
     TrpJsonParser parser;
     if (ac == 1)
@@ -14,6 +16,8 @@ int main (int ac, char ** av) {
         return 1;
     }
 
+    parser.prettyPrint();
+    
     TrpValidatorContext ctx;
     if (!serversConfigArray.validate(parser.getAST(), ctx)) {
         ctx.printErrors();
@@ -21,6 +25,7 @@ int main (int ac, char ** av) {
     }
 
     try {
+        Config configs(parser.getAST());
     // * start(); this should do everything
     } catch (std::exception &e) {
         
