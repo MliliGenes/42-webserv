@@ -149,7 +149,7 @@ Response ResponseBuilder::buildError(int code, const ServerConfig& config){
         std::ostringstream oss;
         oss << "<html><head><title>" 
         << code << " " << statusMessage(code) 
-        << "<title></head><body><h1>" 
+        << "</title></head><body><h1>" 
         << code << " " << statusMessage(code) 
         <<"</h1></body></html>";
 
@@ -185,6 +185,9 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
 				cgirequest	cgireq;
 				cgiresponse	cgires;
                 std::string error;
+                char resolved[4096];
+                if (::realpath(fs_path.c_str(), resolved))
+                    fs_path = resolved;
 
                 std::string working_directory = root;
                 std::size_t slash = fs_path.rfind('/');
@@ -278,6 +281,10 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
 				cgirequest	cgireq;
 				cgiresponse	cgires;
                 std::string error;
+                
+                char resolved[4096];
+                if (::realpath(fs_path.c_str(), resolved))
+                    fs_path = resolved;
 
                 std::string working_directory = root;
                 std::size_t slash = fs_path.rfind('/');
@@ -306,6 +313,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
             }       
         }
     }
+    
     if (!route.uploadEnable)
         return buildError(403, config);
     if (route.uploadStore.empty())
@@ -383,7 +391,6 @@ bool ResponseBuilder::isDirectory(const std::string& path)
 std::string ResponseBuilder::resolve_path(std::string root, std::string path)
 {
     std::string result = root;
-    std::cout << result << std::endl;
     if (!result.empty() && result[result.size() - 1] == '/' && path[0] == '/')
         result.erase(result.size() - 1);
     else if (path[0] != '/' && result[result.size() - 1] != '/')
