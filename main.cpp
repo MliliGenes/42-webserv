@@ -3,8 +3,12 @@
 #include "config/configSchema.cpp"
 
 #include "server/core/Config.hpp"
+#include "server/core/Server.hpp"
+
+void ll() {system("leaks webserv");}
 
 int main (int ac, char ** av) {
+    // atexit(ll);
     TrpJsonParser parser;
 
     TrpJsonLexer* lexer = NULL;
@@ -18,11 +22,11 @@ int main (int ac, char ** av) {
 
     if (!parser.parse()) {
         std::cerr << "Failed to parse JSON file." << std::endl;
-        delete  lexer;
+        // delete  lexer;
         return 1;
     }
 
-    parser.prettyPrint();
+    // parser.prettyPrint();
 
     TrpValidatorContext ctx;
     if (!serversConfigArray.validate(parser.getAST(), ctx)) {
@@ -32,9 +36,12 @@ int main (int ac, char ** av) {
 
     try {
         Config configs(parser.getAST());
-        // * start(); this should do everything
-    } catch (std::exception &e) {
+        configs.prettyPrint();
         
+        Server server(configs);
+        server.run();
+    } catch (std::exception &e) {
+        std::cerr << e.what() << std::endl;
     }
 
     return 0;

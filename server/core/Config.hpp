@@ -49,6 +49,7 @@ class Config {
         ~Config( void );
 
         Config(ITrpJsonValue* ast);
+        void prettyPrint(void);
         const std::vector<ServerConfig>& servers() const;
 };
 

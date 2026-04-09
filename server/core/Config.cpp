@@ -1,5 +1,6 @@
 #include "Config.hpp"
 #include <cstdlib>
+#include <stdexcept>
 
 Config::Config() {}
 Config::~Config() {}
@@ -77,7 +78,6 @@ LocationConfig get_location(TrpJsonObject* locationBlock) {
     }
 
     return locConfig;
-
 }
 
 std::vector<LocationConfig> get_locations(TrpJsonArray* locationsArray) {
@@ -93,12 +93,12 @@ std::vector<LocationConfig> get_locations(TrpJsonArray* locationsArray) {
 
 Config::Config(ITrpJsonValue* ast) {
     if (!ast)
-        return; // exception later
+        throw std::runtime_error("Bad file."); // exception later
 
     if (ast->getType() == TRP_ARRAY) {
         TrpJsonArray* servers_array = static_cast<TrpJsonArray*>(ast);
         if (servers_array->size() == 0)
-            return; // exception later  
+            throw std::runtime_error("No configs provided."); 
         std::cout << servers_array->size() << " server blocks found in configuration." << std::endl;
 
         for (size_t i = 0; i < servers_array->size(); i++) {
@@ -137,5 +137,65 @@ Config::Config(ITrpJsonValue* ast) {
             _servers.push_back(serverConfig);
         }
         std::cout << _servers.size() << " valid server blocks loaded into configuration." << std::endl;
+    }
+}
+
+const std::vector<ServerConfig>& Config::servers(void) const {
+    return _servers;
+}
+
+void Config::prettyPrint(void) {
+    for (size_t i = 0; i < _servers.size(); i++) {
+        const ServerConfig& srv = _servers[i];
+        std::cout << "Server [" << i << "]:\n";
+        std::cout << "  host:              " << srv.host << "\n";
+        std::cout << "  port:              " << srv.port << "\n";
+        std::cout << "  clientMaxBodySize: " << srv.clientMaxBodySize << "\n";
+        std::cout << "  root:              " << srv.root << "\n";
+
+        std::cout << "  serverNames:       ";
+        for (size_t j = 0; j < srv.serverNames.size(); j++)
+            std::cout << srv.serverNames[j] << (j + 1 < srv.serverNames.size() ? ", " : "");
+        std::cout << "\n";
+
+        std::cout << "  index:             ";
+        for (size_t j = 0; j < srv.index.size(); j++)
+            std::cout << srv.index[j] << (j + 1 < srv.index.size() ? ", " : "");
+        std::cout << "\n";
+
+        if (!srv.errorPages.empty()) {
+            std::cout << "  errorPages:\n";
+            for (std::map<int, std::string>::const_iterator it = srv.errorPages.begin(); it != srv.errorPages.end(); ++it)
+                std::cout << "    " << it->first << " -> " << it->second << "\n";
+        }
+
+        for (size_t j = 0; j < srv.routes.size(); j++) {
+            const LocationConfig& loc = srv.routes[j];
+            std::cout << "  Location [" << j << "]: " << loc.path << "\n";
+            std::cout << "    root:         " << loc.root << "\n";
+            std::cout << "    autoindex:    " << (loc.autoindex ? "on" : "off") << "\n";
+            std::cout << "    uploadEnable: " << (loc.uploadEnable ? "on" : "off") << "\n";
+            std::cout << "    uploadStore:  " << loc.uploadStore << "\n";
+
+            std::cout << "    methods:      ";
+            for (std::set<std::string>::const_iterator it = loc.methods.begin(); it != loc.methods.end(); ++it)
+                std::cout << (it != loc.methods.begin() ? ", " : "") << *it;
+            std::cout << "\n";
+
+            std::cout << "    index:        ";
+            for (size_t k = 0; k < loc.index.size(); k++)
+                std::cout << loc.index[k] << (k + 1 < loc.index.size() ? ", " : "");
+            std::cout << "\n";
+
+            if (loc.redirect.enabled)
+                std::cout << "    redirect:     " << loc.redirect.code << " -> " << loc.redirect.url << "\n";
+
+            if (!loc.cgi.empty()) {
+                std::cout << "    cgi:\n";
+                for (std::map<std::string, std::string>::const_iterator it = loc.cgi.begin(); it != loc.cgi.end(); ++it)
+                    std::cout << "      " << it->first << " -> " << it->second << "\n";
+            }
+        }
+        std::cout << "\n";
     }
 }
