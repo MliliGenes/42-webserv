@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form / CGI — webserv</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+    <span class="logo">webserv</span>
+    <a href="/">Home</a>
+    <a href="/upload.html">Upload</a>
+    <a href="/form.html">Form / CGI</a>
+    <a href="/session.html">Session</a>
+    <a href="/uploads">Files</a>
+</nav>
+
+<div class="container">
+    <h1>Form & CGI Test</h1>
+    <p>POST form data to <code>/cgi-bin/echo.py</code> and see what the CGI
+       receives — headers, env variables, and body.</p>
+
+    <div class="card">
+        <h2>POST form → echo.py</h2>
+        <form id="echo-form">
+            <input type="text" name="name"    placeholder="Your name">
+            <input type="text" name="message" placeholder="A message">
+            <select name="color">
+                <option value="red">Red</option>
+                <option value="green">Green</option>
+                <option value="blue">Blue</option>
+            </select>
+            <button type="submit">Send POST</button>
+        </form>
+        <div id="echo-result" class="result">Response will appear here…</div>
+    </div>
+
+    <div class="card">
+        <h2>GET with query string → echo.py</h2>
+        <p>Sends <code>GET /cgi-bin/echo.py?foo=bar&amp;lang=42</code></p>
+        <button id="get-echo-btn">Send GET</button>
+        <div id="get-echo-result" class="result">Response will appear here…</div>
+    </div>
+
+    <div class="card">
+        <h2>Raw CGI test</h2>
+        <input type="text"  id="raw-path" value="/cgi-bin/echo.py" placeholder="/cgi-bin/script.py">
+        <textarea id="raw-body" rows="3" placeholder="Optional POST body"></textarea>
+        <button id="raw-btn">Run</button>
+        <div id="raw-result" class="result">Response will appear here…</div>
+    </div>
+</div>
+
+<script src="/script.js"></script>
+<script>
+document.getElementById('get-echo-btn').addEventListener('click', function() {
+    fetch('/cgi-bin/echo.py?foo=bar&lang=42')
+        .then(function(r) { return r.text(); })
+        .then(function(t) { document.getElementById('get-echo-result').innerHTML = t; });
+});
+
+document.getElementById('raw-btn').addEventListener('click', function() {
+    var path = document.getElementById('raw-path').value;
+    var body = document.getElementById('raw-body').value;
+    var opts = body ? { method: 'POST', body: body,
+                        headers: {'Content-Type':'text/plain'} }
+                    : { method: 'GET' };
+    fetch(path, opts)
+        .then(function(r) { return r.text(); })
+        .then(function(t) { document.getElementById('raw-result').innerHTML = t; })
+        .catch(function(e) {
+            document.getElementById('raw-result').textContent = 'Error: ' + e.message;
+        });
+});
+</script>
+</body>
+</html>
