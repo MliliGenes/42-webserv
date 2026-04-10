@@ -2,15 +2,28 @@
 #include "include/TrpSchema.hpp"
 #include "config/configSchema.cpp"
 
-int main (int ac, char ** av) {
-    TrpJsonParser parser;
-    if (ac == 1)
-        parser.setLexer(new TrpJsonLexer("./config/minimal.config.json"));
-    else
-        parser.setLexer(new TrpJsonLexer(av[1]));
+#include "server/core/Config.hpp"
+#include "server/core/Server.hpp"
 
-    if (!parser.parse())
+void ll() {system("leaks webserv");}
+
+int main (int ac, char ** av) {
+    // atexit(ll);
+    TrpJsonParser parser;
+
+    TrpJsonLexer* lexer = NULL;
+    if (ac == 1){
+        lexer = new TrpJsonLexer("config/minimal.config.json");
+    }
+    else {
+        lexer = new TrpJsonLexer(av[1]);
+    }
+    parser.setLexer(lexer);
+
+    if (!parser.parse()) {
+        std::cerr << "Failed to parse JSON file." << std::endl;
         return 1;
+    }
 
     TrpValidatorContext ctx;
     if (!serversConfigArray.validate(parser.getAST(), ctx)) {
@@ -19,9 +32,13 @@ int main (int ac, char ** av) {
     }
 
     try {
-    // * start(); this should do everything
-    } catch (std::exception &e) {
+        Config configs(parser.getAST());
+        configs.prettyPrint();
         
+        Server server(configs);
+        server.run();
+    } catch (std::exception &e) {
+        std::cerr << e.what() << std::endl;
     }
 
     return 0;

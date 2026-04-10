@@ -16,7 +16,11 @@ void TrpJsonParser::setLexer( TrpJsonLexer* _lexer ) {
 }
 
 void TrpJsonParser::resetLexer( TrpJsonLexer* new_lexer ) {
-    if ( !new_lexer || !new_lexer->isOpen() ) return;
+    if ( !new_lexer ) return;
+    if ( !new_lexer->isOpen() ) {
+        delete new_lexer;
+        return;
+    }
     if ( lexer ) delete lexer;
     lexer = new_lexer;
 }

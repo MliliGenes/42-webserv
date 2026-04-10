@@ -3,7 +3,7 @@ DATE := $(shell date +"%Y-%m-%d %H:%M:%S")
 NAME = webserv
 
 CXX = c++
-CXX_FLAGS = -Wall -Wextra -Werror -std=c++98
+CXX_FLAGS = -Wall -Wextra -Werror -std=c++98 -fsanitize=address -g3 
 
 BUILD_DIR = build
 
@@ -14,16 +14,18 @@ TRP_JSON_LIB = $(TRP_JSON_DIR)/lib/libtrpjson.a
 TRP_SCHEMA_LIB = $(TRP_SCHEMA_DIR)/lib/libtrpschema.a
 
 ROOT_DIR = .
-CORE_DIR = 
+CORE_DIR = server/core
 HTTP_REQ_DIR = 
 HTTP_RES_DIR = 
 CGI_DIR = 
 
 ROOT_SRC = $(wildcard *.cpp)
+CORE_SRC = $(wildcard $(CORE_DIR)/*.cpp)
 
 ROOT_OBJ = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(ROOT_SRC))
+CORE_OBJ = $(patsubst $(CORE_DIR)/%.cpp,$(BUILD_DIR)/$(CORE_DIR)/%.o,$(CORE_SRC))
 
-ALL_OBJ = $(ROOT_OBJ) 
+ALL_OBJ = $(ROOT_OBJ) $(CORE_OBJ)
 
 TOTAL_FILES = $(words $(ALL_OBJ))
 
@@ -56,6 +58,11 @@ $(NAME): $(TRP_JSON_LIB) $(TRP_SCHEMA_LIB) $(ALL_OBJ)
 	@echo "[$(DATE)] [Built] $@ - webserv is ready for use!"
 
 $(BUILD_DIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXX_FLAGS) -c $< -o $@
+	@$(print_progress)
+
+$(BUILD_DIR)/$(CORE_DIR)/%.o: $(CORE_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXX_FLAGS) -c $< -o $@
 	@$(print_progress)
