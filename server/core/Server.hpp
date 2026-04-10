@@ -5,6 +5,12 @@
 #include <poll.h>
 #include "Config.hpp"
 
+#include "../request-response/request/RequestParser.hpp"
+#include "../request-response/request/Request.hpp"
+#include "../request-response/response/Response.hpp"
+#include "../request-response/response/ResponseBuilder.hpp"
+#include "../request-response/cookie-session/SessionManager.hpp"
+
 struct Client {
     int         server_block_index;
 
@@ -32,6 +38,15 @@ class Server {
         void _add_fd(int fd, short events);
         bool _is_listener(int fd);
         void _check_timeouts();
+
+		SessionManager	session;
+
+		ResponseBuilder _res_b;
+		RequestParser	_req_p;
+
+		Request			_req;
+		Response		_res;
+		cgihandler		_cgi;
 
     public:
         Server(const Config& cfg);

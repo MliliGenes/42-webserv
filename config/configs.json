@@ -5,7 +5,7 @@
       "port": 8080,
       "server_name": ["example.com", "www.example.com"],
       "client_max_body_size": "10M",
-      "root": "/var/www/example",
+      "root": "./server/www",
       "error_pages": {
         "404": "/errors/404.html",
         "500": "/errors/500.html",
@@ -15,7 +15,6 @@
         {
           "path": "/",
           "methods": ["GET", "POST"],
-          "root": "/var/www/example",
           "index": ["index.html"],
           "autoindex": true
         },
@@ -71,13 +70,13 @@
         "404": "/custom_errors/not_found.html",
         "500": "/custom_errors/server_error.html"
       },
-      "root": "/var/www/local",
+      "root": "./server/www",
       "index": ["index.html"],
       "locations": [
         {
           "path": "/",
           "methods": ["GET"],
-          "autoindex": false
+          "autoindex": true
         },
         {
           "path": "/files",

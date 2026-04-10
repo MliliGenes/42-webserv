@@ -10,7 +10,8 @@
 #include <iostream>
 #include <stdexcept>
 
-Server::Server(const Config& cfg) : _configs(cfg.servers()) {}
+Server::Server(const Config& cfg) : _configs(cfg.servers()), _res_b(session) {
+}
 
 static void set_nonblocking(int fd) {
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
@@ -195,7 +196,7 @@ std::string build_json_response(const std::string& req_buf) {
     return response;
 }
 
-static std::string build_html_response(const std::string& req_buf) {
+std::string build_html_response(const std::string& req_buf) {
     size_t line_end = req_buf.find("\r\n");
     std::string request_line = req_buf.substr(0, line_end);
 
@@ -411,7 +412,6 @@ static std::string build_html_response(const std::string& req_buf) {
         + html;
 }
 
-
 void Server::_handle_read(size_t i) {
     int fd = _pollfds[i].fd;
     char buf[4096];
@@ -430,7 +430,12 @@ void Server::_handle_read(size_t i) {
     std::cout << "fd:" << fd << " at server " << _clients[fd].server_block_index << "  " << _clients[fd].req_buf.substr(0, line_end) << std::endl;
 
     _clients[fd].keep_alive = is_keep_alive(_clients[fd].req_buf);
-    _clients[fd].res_buf    = build_html_response(_clients[fd].req_buf);
+	_req_p.feed(_clients[fd].req_buf.c_str(), _clients[fd].req_buf.size());
+	_req = _req_p.getRequest();
+
+	_res = _res_b.dispatch(_req, _configs[_clients[fd].server_block_index], _cgi);
+
+    _clients[fd].res_buf    = _res.build();
     _clients[fd].req_buf.clear();
     _pollfds[i].events = POLLOUT;
 }
