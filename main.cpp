@@ -22,8 +22,11 @@ int main (int ac, char ** av) {
 
     if (!parser.parse()) {
         std::cerr << "Failed to parse JSON file." << std::endl;
+        // delete  lexer;
         return 1;
     }
+
+    // parser.prettyPrint();
 
     TrpValidatorContext ctx;
     if (!serversConfigArray.validate(parser.getAST(), ctx)) {

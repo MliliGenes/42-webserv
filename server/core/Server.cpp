@@ -288,13 +288,12 @@ void Server::_handle_read(size_t i) {
 
     _clients[fd].req_buf.append(buf, n);
 
-    if (!request_complete(_clients[fd].req_buf)) return; // wait for more data
+    // if (!request_complete(_clients[fd].req_buf)) return; // wait for more data
 
     // log the request line to stdout
     size_t line_end = _clients[fd].req_buf.find("\r\n");
     std::cout << "fd:" << fd << "  " << _clients[fd].req_buf.substr(0, line_end) << std::endl;
 
-    // use ur parser and builder instead of the hard coded html gen
     _clients[fd].res_buf = build_html_response(_clients[fd].req_buf);
     _clients[fd].req_buf.clear();
     _pollfds[i].events = POLLOUT;
