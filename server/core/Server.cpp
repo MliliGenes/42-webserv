@@ -63,12 +63,26 @@ void Server::_setup_listeners() {
 }
 
 void Server::_handle_accept(int listener_fd) {
+
+    int server_index = -1;
+    int i = 0;
+
+    for (std::set<int>::iterator it = _listeners.begin(); it != _listeners.end(); ++it, ++i) {
+        if (*it == listener_fd) {
+            server_index = i;
+            break;
+        }
+    }
+
     int cfd = accept(listener_fd, NULL, NULL);
     if (cfd < 0) return;                  // EAGAIN or error — skip
     set_nonblocking(cfd);
 
     Client c;
     c.fd = cfd;
+    c.keep_alive = true;
+    c.last_active = time(NULL);
+    c.server_block_index = server_index;
     _clients[cfd] = c;
     _add_fd(cfd, POLLIN);
 
@@ -82,6 +96,25 @@ void Server::_close_client(size_t i) {
     _clients.erase(fd);
     _pollfds[i] = _pollfds.back();
     _pollfds.pop_back();
+}
+
+// always bosting my emotions
+static bool is_keep_alive(const std::string& req_buf) {
+    // HTTP/1.1 defaults to keep-alive unless client says close
+    bool is_1_1 = req_buf.find("HTTP/1.1") != std::string::npos;
+
+    size_t pos = req_buf.find("Connection:");
+    if (pos == std::string::npos)
+        return is_1_1; // no header → follow version default
+
+    // read the value
+    pos += 11;
+    while (pos < req_buf.size() && req_buf[pos] == ' ') pos++;
+    std::string val = req_buf.substr(pos, req_buf.find("\r\n", pos) - pos);
+
+    if (val.find("close") != std::string::npos)    return false;
+    if (val.find("keep-alive") != std::string::npos) return true;
+    return is_1_1;
 }
 
 // put this helper above _handle_read
@@ -273,7 +306,7 @@ static std::string build_html_response(const std::string& req_buf) {
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html; charset=UTF-8\r\n"
         "Content-Length: " + len + "\r\n"
-        "Connection: close\r\n"
+        "Connection: keep-alive\r\n"
         "\r\n"
         + html;
 }
@@ -287,14 +320,16 @@ void Server::_handle_read(size_t i) {
     if (n <= 0) { _close_client(i); return; }
 
     _clients[fd].req_buf.append(buf, n);
+    _clients[fd].last_active = time(NULL);
 
-    // if (!request_complete(_clients[fd].req_buf)) return; // wait for more data
+    if (!request_complete(_clients[fd].req_buf)) return; // wait for more data
 
-    // log the request line to stdout
+    // log
     size_t line_end = _clients[fd].req_buf.find("\r\n");
-    std::cout << "fd:" << fd << "  " << _clients[fd].req_buf.substr(0, line_end) << std::endl;
+    std::cout << "fd:" << fd << " at server " << _clients[fd].server_block_index << "  " << _clients[fd].req_buf.substr(0, line_end) << std::endl;
 
-    _clients[fd].res_buf = build_html_response(_clients[fd].req_buf);
+    _clients[fd].keep_alive = is_keep_alive(_clients[fd].req_buf);
+    _clients[fd].res_buf    = build_html_response(_clients[fd].req_buf);
     _clients[fd].req_buf.clear();
     _pollfds[i].events = POLLOUT;
 }
@@ -305,11 +340,41 @@ void Server::_handle_write(size_t i) {
 
     int n = send(fd, c.res_buf.c_str(), c.res_buf.size(), 0);
     if (n < 0 && errno == EAGAIN) return;
-    if (n < 0) { _close_client(i); return; }
+    if (n < 0) { 
+        std::cout << "keep alive is off, send failed" << std::endl;
+        _close_client(i); return;
+    }
 
     c.res_buf.erase(0, n);
-    if (c.res_buf.empty())
-        _pollfds[i].events = POLLIN;    // done writing, back to reading
+    c.last_active = time(NULL);
+
+    // still have more to pollout go back to loop
+    if (!c.res_buf.empty()) return;
+
+    // response fully sent — branch here
+    if (c.keep_alive) {
+        c.req_buf.clear();          // throw away the old request
+        c.res_buf.clear();          // already empty but be explicit
+        _pollfds[i].events = POLLIN; // wait for the NEXT request
+    } else {
+        std::cout << "keep alive is off after send" << std::endl;
+        _close_client(i);           // Connection: close → tear down
+    }
+}
+
+void Server::_check_timeouts() {
+    time_t now = time(NULL);
+    size_t i = 0;
+    while (i < _pollfds.size()) {
+        int fd = _pollfds[i].fd;
+        if (_is_listener(fd)) { i++; continue; }
+        if (now - _clients[fd].last_active > 30) {
+            std::cout << "timeout  fd:" << fd << std::endl;
+            _close_client(i); // no i++ — swap-and-pop put a new fd at index i
+        } else {
+            i++;
+        }
+    }
 }
 
 void Server::run() {
@@ -322,6 +387,10 @@ void Server::run() {
             if (errno == EINTR) continue;
             break;
         }
+
+        _check_timeouts();
+
+        if (n == 0) continue;
 
         size_t sz = _pollfds.size();
         for (size_t i = 0; i < sz; i++) {
@@ -339,8 +408,10 @@ void Server::run() {
             }
             if (_pollfds[i].revents & POLLIN)
                 _handle_read(i);
-            if (i < _pollfds.size() && _pollfds[i].revents & POLLOUT)
-                _handle_write(i);
+
+            if (_clients.count(fd) && i < _pollfds.size() && _pollfds[i].fd == fd)
+                if (_pollfds[i].revents & POLLOUT)
+                    _handle_write(i);
         }
     }
 }
