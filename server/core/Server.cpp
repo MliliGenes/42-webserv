@@ -94,13 +94,19 @@ static bool is_keep_alive(const std::string& req_buf) {
     bool is_1_1 = req_buf.find("HTTP/1.1") != std::string::npos;
 
     size_t pos = req_buf.find("Connection:");
+    if (pos == std::string::npos) pos = req_buf.find("connection:");
     if (pos == std::string::npos)
         return is_1_1; // no header → follow version default
 
     // read the value
-    pos += 11;
-    while (pos < req_buf.size() && req_buf[pos] == ' ') pos++;
-    std::string val = req_buf.substr(pos, req_buf.find("\r\n", pos) - pos);
+    pos = req_buf.find(':', pos) + 1;
+    while (pos < req_buf.size() && (req_buf[pos] == ' ' || req_buf[pos] == '\t')) pos++;
+    size_t end = req_buf.find("\r\n", pos);
+    std::string val = req_buf.substr(pos, end == std::string::npos ? std::string::npos : end - pos);
+
+    for (size_t j = 0; j < val.size(); j++) {
+        if (val[j] >= 'A' && val[j] <= 'Z') val[j] += 32;
+    }
 
     if (val.find("close") != std::string::npos)    return false;
     if (val.find("keep-alive") != std::string::npos) return true;
@@ -113,8 +119,12 @@ bool request_complete(const std::string& buf) {
     if (header_end == std::string::npos) return false;
 
     size_t cl = buf.find("Content-Length:");
-    if (cl != std::string::npos) {
-        int body_len = atoi(buf.c_str() + cl + 15);
+    if (cl == std::string::npos) cl = buf.find("content-length:");
+
+    if (cl != std::string::npos && cl < header_end) {
+        size_t val_pos = buf.find(':', cl) + 1;
+        while (val_pos < header_end && (buf[val_pos] == ' ' || buf[val_pos] == '\t')) val_pos++;
+        int body_len = atoi(buf.c_str() + val_pos);
         return (int)(buf.size() - header_end - 4) >= body_len;
     }
     return true;
@@ -230,8 +240,7 @@ void Server::run() {
             continue;
         }
 
-        size_t sz = _pollfds.size();
-        for (size_t i = 0; i < sz; i++) {
+        for (size_t i = 0; i < _pollfds.size(); i++) {
             if (_pollfds[i].revents == 0) continue;
 
             int fd = _pollfds[i].fd;
@@ -242,16 +251,27 @@ void Server::run() {
             }
 
             if (_pollfds[i].revents & (POLLHUP | POLLERR)) {
-                _close_client(i--); sz--;
+                _close_client(i--);
                 continue;
             }
 
-            if (_pollfds[i].revents & POLLIN)
+            if (_pollfds[i].revents & POLLIN) {
                 _handle_read(i);
+                if (i >= _pollfds.size() || _pollfds[i].fd != fd) {
+                    i--;
+                    continue;
+                }
+            }
 
-            if (_clients.count(fd) && i < _pollfds.size() && _pollfds[i].fd == fd)
-                if (_pollfds[i].revents & POLLOUT)
+            if (_clients.count(fd) && i < _pollfds.size() && _pollfds[i].fd == fd) {
+                if (_pollfds[i].revents & POLLOUT) {
                     _handle_write(i);
+                    if (i >= _pollfds.size() || _pollfds[i].fd != fd) {
+                        i--;
+                        continue;
+                    }
+                }
+            }
         }
     }
 }
