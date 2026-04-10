@@ -242,7 +242,6 @@ void Server::run() {
             }
 
             if (_pollfds[i].revents & (POLLHUP | POLLERR)) {
-                std::cerr << "WTF" << std::endl;
                 _close_client(i--); sz--;
                 continue;
             }
