@@ -4,15 +4,17 @@
             "host": "127.0.0.1",
             "port": 8080,
             "server_name": ["localhost"],
-            "root": "./www",
+            "root": "www/",
             "index": ["index.html"],
             "client_max_body_size": "10M",
+
             "locations": [
                 {
                     "path": "/",
                     "methods": [
                         "GET"
                     ],
+                    "autoindex": true,
                     "index": [
                         "index.html"
                     ],

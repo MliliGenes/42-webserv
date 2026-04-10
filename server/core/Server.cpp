@@ -189,7 +189,7 @@ std::string build_json_response(const std::string& req_buf) {
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: application/json\r\n"
         "Content-Length: " + content_length + "\r\n"
-        "Connection: close\r\n"
+        "Connection: keep-alive\r\n"
         "\r\n"
         + json;
 
@@ -407,7 +407,7 @@ std::string build_html_response(const std::string& req_buf) {
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html; charset=UTF-8\r\n"
         "Content-Length: " + len + "\r\n"
-        "Connection: keep-alive\r\n"
+        "Connection: close\r\n"
         "\r\n"
         + html;
 }
@@ -435,7 +435,13 @@ void Server::_handle_read(size_t i) {
 
 	_res = _res_b.dispatch(_req, _configs[_clients[fd].server_block_index], _cgi);
 
-    _clients[fd].res_buf    = _res.build();
+    std::string str1 = _res.build();
+    std::string str2 = build_html_response(_clients[fd].req_buf);
+
+    // std::cout << str1 << "\n\n\n\n"
+    //         << str2 << std::endl;
+
+    _clients[fd].res_buf = str1;
     _clients[fd].req_buf.clear();
     _pollfds[i].events = POLLOUT;
 }
@@ -447,7 +453,6 @@ void Server::_handle_write(size_t i) {
     int n = send(fd, c.res_buf.c_str(), c.res_buf.size(), 0);
     if (n < 0 && errno == EAGAIN) return;
     if (n < 0) { 
-        std::cout << "keep alive is off, send failed" << std::endl;
         _close_client(i); return;
     }
 
@@ -463,7 +468,6 @@ void Server::_handle_write(size_t i) {
         c.res_buf.clear();          // already empty but be explicit
         _pollfds[i].events = POLLIN; // wait for the NEXT request
     } else {
-        std::cout << "keep alive is off after send" << std::endl;
         _close_client(i);           // Connection: close → tear down
     }
 }
@@ -508,10 +512,13 @@ void Server::run() {
                 _handle_accept(fd);
                 continue;
             }
+
             if (_pollfds[i].revents & (POLLHUP | POLLERR)) {
+                std::cerr << "WTF" << std::endl;
                 _close_client(i--); sz--;
                 continue;
             }
+
             if (_pollfds[i].revents & POLLIN)
                 _handle_read(i);
 

@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include <sstream>
+#include <iostream>
 
 
 struct Response {
@@ -18,6 +19,7 @@ struct Response {
         std::ostringstream oss;
 
         oss << "HTTP/1.1 " << status_code << " " << status_message << "\r\n";
+        // oss << "Connection: keep-alive\r\n";
 
         std::map<std::string, std::string>::const_iterator it;
         for (it = headers.begin(); it != headers.end(); ++it)
