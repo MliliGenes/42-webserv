@@ -433,6 +433,7 @@ Response ResponseBuilder::listsDirectory(const std::string& fs_path, const std::
     res.body                      = body;
     res.headers["Content-Type"]   = "text/html";
     res.headers["Content-Length"] = sizeToString(body.size());
+    res.headers["Connection"] = "keep-alive";
     return res;
 }
 

@@ -226,7 +226,7 @@ void Server::run() {
         }
 
         if (n == 0) {
-            _check_timeouts();
+            // _check_timeouts();
             continue;
         }
 
