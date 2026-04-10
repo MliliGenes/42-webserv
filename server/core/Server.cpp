@@ -145,6 +145,21 @@ void Server::_handle_read(size_t i) {
     size_t line_end = _clients[fd].req_buf.find("\r\n");
     std::cout << "fd:" << fd << " at server " << _clients[fd].server_block_index << "  " << _clients[fd].req_buf.substr(0, line_end) << std::endl;
 
+    if (!request_complete(_clients[fd].req_buf)) {
+        // check if body already exceeds the limit while still buffering
+        size_t max = _configs[_clients[fd].server_block_index].clientMaxBodySize;
+        if (_clients[fd].req_buf.size() > max) {
+            std::cout << "fd:" << fd << " body too large — 413\n";
+            _res = _res_b.buildError(413, _configs[_clients[fd].server_block_index]);
+            _res.headers["Connection"] = "close";
+            _clients[fd].res_buf  = _res.build();
+            _clients[fd].req_buf.clear();
+            _clients[fd].keep_alive = false;
+            _pollfds[i].events = POLLOUT;
+        }
+        return;
+    }
+
     _clients[fd].keep_alive = is_keep_alive(_clients[fd].req_buf);
     _req_p.reset();
     RequestParser::Status parse_status = _req_p.feed(_clients[fd].req_buf.c_str(), _clients[fd].req_buf.size());
