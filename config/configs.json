@@ -5,7 +5,7 @@
       "port": 8080,
       "server_name": ["example.com", "www.example.com"],
       "client_max_body_size": "10M",
-      "root": "./server/www",
+      "root": "www",
       "error_pages": {
         "404": "/errors/404.html",
         "500": "/errors/500.html",

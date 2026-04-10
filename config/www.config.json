@@ -1,0 +1,40 @@
+[
+    {
+        "server": {
+            "host": "127.0.0.1",
+            "port": 8080,
+            "server_name": [
+                "localhost"
+            ],
+            "client_max_body_size": "10M",
+            "root": "www/",
+            "index": [
+                "index.html"
+            ],
+            "locations": [
+                {
+                    "path": "/",
+                    "methods": [
+                        "GET"
+                    ],
+                    "autoindex": false,
+                    "index": [
+                        "index.html"
+                    ]
+                },
+                {
+                    "path": "/cgi-bin",
+                    "methods": [
+                        "GET",
+                        "POST"
+                    ],
+                    "root": "www/",
+                    "cgi": {
+                        ".php": "/usr/bin/php-cgi",
+                        ".py": "/usr/bin/python3"
+                    }
+                }
+            ]
+        }
+    }
+]
