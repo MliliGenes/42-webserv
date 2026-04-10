@@ -28,7 +28,7 @@ class Server {
         const std::vector<ServerConfig>& _configs;
         std::vector<pollfd>              _pollfds;
         std::map<int, Client>            _clients;
-        std::set<int>                    _listeners; // listener fds
+        std::map<int, int>               _listeners;
 
         void _setup_listeners();
         void _handle_accept(int fd);

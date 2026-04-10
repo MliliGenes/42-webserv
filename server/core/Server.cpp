@@ -56,7 +56,7 @@ void Server::_setup_listeners() {
         if (listen(fd, 128) < 0)
             throw std::runtime_error("listen() failed");
 
-        _listeners.insert(fd);
+        _listeners[fd] = i;
         _add_fd(fd, POLLIN);
 
         std::cout << "listening on " << srv.host << ":" << srv.port << "  fd:" << fd << std::endl;
@@ -64,17 +64,6 @@ void Server::_setup_listeners() {
 }
 
 void Server::_handle_accept(int listener_fd) {
-
-    int server_index = -1;
-    int i = 0;
-
-    for (std::set<int>::iterator it = _listeners.begin(); it != _listeners.end(); ++it, ++i) {
-        if (*it == listener_fd) {
-            server_index = i;
-            break;
-        }
-    }
-
     int cfd = accept(listener_fd, NULL, NULL);
     if (cfd < 0) return;                  // EAGAIN or error — skip
     set_nonblocking(cfd);
@@ -83,7 +72,7 @@ void Server::_handle_accept(int listener_fd) {
     c.fd = cfd;
     c.keep_alive = true;
     c.last_active = time(NULL);
-    c.server_block_index = server_index;
+    c.server_block_index = _listeners[listener_fd];
     _clients[cfd] = c;
     _add_fd(cfd, POLLIN);
 
@@ -140,277 +129,6 @@ std::string parse_header(const std::string& buf, const std::string& key) {
     return buf.substr(pos, end - pos);
 }
 
-// std::string build_json_response(const std::string& req_buf) {
-//     // parse request line
-//     size_t line_end = req_buf.find("\r\n");
-//     std::string request_line = req_buf.substr(0, line_end);
-
-//     std::string method, path, version;
-//     size_t s1 = request_line.find(' ');
-//     size_t s2 = request_line.find(' ', s1 + 1);
-//     if (s1 != std::string::npos && s2 != std::string::npos) {
-//         method  = request_line.substr(0, s1);
-//         path    = request_line.substr(s1 + 1, s2 - s1 - 1);
-//         version = request_line.substr(s2 + 1);
-//     }
-
-//     // pull useful headers
-//     std::string host         = parse_header(req_buf, "Host");
-//     std::string user_agent   = parse_header(req_buf, "User-Agent");
-//     std::string content_type = parse_header(req_buf, "Content-Type");
-//     std::string accept       = parse_header(req_buf, "Accept");
-//     std::string connection   = parse_header(req_buf, "Connection");
-
-//     // extract body if any
-//     std::string body;
-//     size_t header_end = req_buf.find("\r\n\r\n");
-//     if (header_end != std::string::npos)
-//         body = req_buf.substr(header_end + 4);
-
-//     // escape quotes in strings just in case
-//     // build json body
-//     std::string json =
-//         "{\n"
-//         "  \"method\": \""       + method       + "\",\n"
-//         "  \"path\": \""         + path         + "\",\n"
-//         "  \"httpVersion\": \""  + version      + "\",\n"
-//         "  \"host\": \""         + host         + "\",\n"
-//         "  \"userAgent\": \""    + user_agent   + "\",\n"
-//         "  \"accept\": \""       + accept       + "\",\n"
-//         "  \"contentType\": \""  + content_type + "\",\n"
-//         "  \"connection\": \""   + connection   + "\",\n"
-//         "  \"bodyLength\": "     + (body.empty() ? "0" : std::to_string((int)body.size())) + ",\n"
-//         "  \"body\": \""         + (body.empty() ? "" : body) + "\"\n"
-//         "}";
-
-//     // build raw HTTP response
-//     std::string content_length = std::to_string(json.size());
-//     std::string response =
-//         "HTTP/1.1 200 OK\r\n"
-//         "Content-Type: application/json\r\n"
-//         "Content-Length: " + content_length + "\r\n"
-//         "Connection: keep-alive\r\n"
-//         "\r\n"
-//         + json;
-
-//     return response;
-// }
-
-// std::string build_html_response(const std::string& req_buf) {
-//     size_t line_end = req_buf.find("\r\n");
-//     std::string request_line = req_buf.substr(0, line_end);
-
-//     std::string method, path, version;
-//     size_t s1 = request_line.find(' ');
-//     size_t s2 = request_line.find(' ', s1 + 1);
-//     if (s1 != std::string::npos && s2 != std::string::npos) {
-//         method  = request_line.substr(0, s1);
-//         path    = request_line.substr(s1 + 1, s2 - s1 - 1);
-//         version = request_line.substr(s2 + 1);
-//     }
-
-//     std::string host       = parse_header(req_buf, "Host");
-//     std::string user_agent = parse_header(req_buf, "User-Agent");
-//     std::string accept     = parse_header(req_buf, "Accept");
-//     std::string connection = parse_header(req_buf, "Connection");
-//     std::string encoding   = parse_header(req_buf, "Accept-Encoding");
-//     std::string language   = parse_header(req_buf, "Accept-Language");
-
-//     std::string body;
-//     size_t header_end = req_buf.find("\r\n\r\n");
-//     if (header_end != std::string::npos)
-//         body = req_buf.substr(header_end + 4);
-
-//     std::string headers_rows;
-//     std::string headers_section = req_buf.substr(line_end + 2);
-//     size_t hend = headers_section.find("\r\n\r\n");
-//     if (hend != std::string::npos) headers_section = headers_section.substr(0, hend);
-
-//     size_t pos = 0;
-//     while (pos < headers_section.size()) {
-//         size_t nl = headers_section.find("\r\n", pos);
-//         if (nl == std::string::npos) nl = headers_section.size();
-//         std::string hline = headers_section.substr(pos, nl - pos);
-//         size_t colon = hline.find(':');
-//         if (colon != std::string::npos) {
-//             std::string hkey = hline.substr(0, colon);
-//             std::string hval = hline.substr(colon + 1);
-//             while (!hval.empty() && hval[0] == ' ') hval.erase(0, 1);
-//             headers_rows +=
-//                 "<tr><td>" + hkey + "</td><td>" + hval + "</td></tr>\n";
-//         }
-//         pos = nl + 2;
-//     }
-
-//     std::string body_section;
-//     if (!body.empty()) {
-//         body_section =
-//             "<section>"
-//             "<h2>request body</h2>"
-//             "<pre>" + body + "</pre>"
-//             "</section>";
-//     }
-
-//     std::string html =
-//         "<!DOCTYPE html>"
-//         "<html lang='en'>"
-//         "<head>"
-//         "<meta charset='UTF-8'>"
-//         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-//         "<title>request inspector — " + method + " " + path + "</title>"
-//         "<style>"
-//         "  *{box-sizing:border-box;margin:0;padding:0}"
-//         "  html{height:100%}"
-//         "  body{"
-//         "    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;"
-//         "    background:linear-gradient(135deg,#0a0e27 0%,#1a1f3a 100%);"
-//         "    color:#e1e8f0;"
-//         "    min-height:100vh;"
-//         "    display:flex;"
-//         "    justify-content:center;"
-//         "    align-items:flex-start;"
-//         "    padding:3rem 1rem;"
-//         "  }"
-//         "  .container{"
-//         "    width:100%;"
-//         "    max-width:900px;"
-//         "    background:rgba(20,25,45,0.8);"
-//         "    backdrop-filter:blur(10px);"
-//         "    border:1px solid rgba(100,180,255,0.1);"
-//         "    border-radius:12px;"
-//         "    padding:3rem;"
-//         "    box-shadow:0 20px 60px rgba(0,0,0,0.4);"
-//         "  }"
-//         "  h1{"
-//         "    font-size:1.8rem;"
-//         "    font-weight:600;"
-//         "    color:#64b4ff;"
-//         "    margin-bottom:0.5rem;"
-//         "    letter-spacing:-0.5px;"
-//         "  }"
-//         "  .subtitle{"
-//         "    color:#8e9caf;"
-//         "    font-size:0.95rem;"
-//         "    margin-bottom:2.5rem;"
-//         "    font-weight:400;"
-//         "  }"
-//         "  .divider{height:1px;background:rgba(100,180,255,0.1);margin:2rem 0;}"
-//         "  h2{"
-//         "    font-size:0.85rem;"
-//         "    color:#64b4ff;"
-//         "    text-transform:uppercase;"
-//         "    letter-spacing:1.2px;"
-//         "    margin-bottom:1.25rem;"
-//         "    font-weight:600;"
-//         "  }"
-//         "  section{margin-bottom:2.5rem;}"
-//         "  section:last-child{margin-bottom:0;}"
-//         "  .request-line{"
-//         "    background:rgba(50,70,100,0.5);"
-//         "    border-left:4px solid #64b4ff;"
-//         "    border-radius:6px;"
-//         "    padding:1.25rem 1.5rem;"
-//         "    margin-bottom:0;"
-//         "    font-size:1.05rem;"
-//         "    font-weight:500;"
-//         "    font-family:'Fira Code','Courier New',monospace;"
-//         "    letter-spacing:0.3px;"
-//         "  }"
-//         "  .method{"
-//         "    color:#4dd9ff;"
-//         "    font-weight:700;"
-//         "    margin-right:1rem;"
-//         "  }"
-//         "  .path{"
-//         "    color:#ffc864;"
-//         "    margin-right:1rem;"
-//         "  }"
-//         "  .version{"
-//         "    color:#8e9caf;"
-//         "  }"
-//         "  table{"
-//         "    width:100%;"
-//         "    border-collapse:collapse;"
-//         "    font-size:0.9rem;"
-//         "  }"
-//         "  td{"
-//         "    padding:0.85rem 1rem;"
-//         "    border-bottom:1px solid rgba(100,180,255,0.08);"
-//         "    vertical-align:top;"
-//         "  }"
-//         "  tr:last-child td{border-bottom:none;}"
-//         "  td:first-child{"
-//         "    color:#64b4ff;"
-//         "    font-weight:600;"
-//         "    white-space:nowrap;"
-//         "    width:200px;"
-//         "    font-family:'Fira Code','Courier New',monospace;"
-//         "  }"
-//         "  td:last-child{"
-//         "    color:#c8d4e8;"
-//         "    word-break:break-word;"
-//         "    font-family:'Fira Code','Courier New',monospace;"
-//         "    font-size:0.85rem;"
-//         "  }"
-//         "  pre{"
-//         "    background:rgba(10,15,30,0.6);"
-//         "    border:1px solid rgba(100,180,255,0.1);"
-//         "    border-left:4px solid #4dd9ff;"
-//         "    border-radius:6px;"
-//         "    padding:1.25rem;"
-//         "    font-size:0.85rem;"
-//         "    color:#a8d8ff;"
-//         "    font-family:'Fira Code','Courier New',monospace;"
-//         "    white-space:pre-wrap;"
-//         "    word-break:break-word;"
-//         "    line-height:1.6;"
-//         "    overflow-x:auto;"
-//         "  }"
-//         "  .empty{"
-//         "    color:#6b7a8f;"
-//         "    font-size:0.9rem;"
-//         "    font-style:italic;"
-//         "    padding:1rem;"
-//         "  }"
-//         "</style>"
-//         "</head>"
-//         "<body>"
-//         "<div class='container'>"
-//         "<h1>request inspector</h1>"
-//         "<p class='subtitle'>HTTP Request Breakdown</p>"
-//         "<div class='divider'></div>"
-
-//         "<div class='request-line'>"
-//         "  <span class='method'>"  + method  + "</span>"
-//         "  <span class='path'>"    + path    + "</span>"
-//         "  <span class='version'>" + version + "</span>"
-//         "</div>"
-
-//         "<div class='divider'></div>"
-
-//         "<section>"
-//         "<h2>headers</h2>"
-//         "<table>" + headers_rows + "</table>"
-//         "</section>"
-
-//         + body_section +
-
-//         (body.empty()
-//             ? "<section><h2>body</h2><p class='empty'>no request body</p></section>"
-//             : "") +
-
-//         "</div>"
-//         "</body></html>";
-
-//     std::string len = std::to_string(html.size());
-//     return
-//         "HTTP/1.1 200 OK\r\n"
-//         "Content-Type: text/html; charset=UTF-8\r\n"
-//         "Content-Length: " + len + "\r\n"
-//         "Connection: close\r\n"
-//         "\r\n"
-//         + html;
-// }
 
 void Server::_handle_read(size_t i) {
     int fd = _pollfds[i].fd;
@@ -507,9 +225,10 @@ void Server::run() {
             break;
         }
 
-        _check_timeouts();
-
-        if (n == 0) continue;
+        if (n == 0) {
+            _check_timeouts();
+            continue;
+        }
 
         size_t sz = _pollfds.size();
         for (size_t i = 0; i < sz; i++) {
