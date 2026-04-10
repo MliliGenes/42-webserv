@@ -141,8 +141,6 @@ void Server::_handle_read(size_t i) {
     _clients[fd].req_buf.append(buf, n);
     _clients[fd].last_active = time(NULL);
 
-    if (!request_complete(_clients[fd].req_buf)) return; // wait for more data
-
     // log
     size_t line_end = _clients[fd].req_buf.find("\r\n");
     std::cout << "fd:" << fd << " at server " << _clients[fd].server_block_index << "  " << _clients[fd].req_buf.substr(0, line_end) << std::endl;
@@ -225,8 +223,9 @@ void Server::run() {
             break;
         }
 
+        _check_timeouts();
+
         if (n == 0) {
-            _check_timeouts();
             continue;
         }
 
