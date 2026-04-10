@@ -59,7 +59,7 @@ void Server::_setup_listeners() {
         _listeners[fd] = i;
         _add_fd(fd, POLLIN);
 
-        std::cout << "listening on " << srv.host << ":" << srv.port << "  fd:" << fd << std::endl;
+        std::cout << "listening on http://" << srv.host << ":" << srv.port << "  fd:" << fd << std::endl;
     }
 }
 
@@ -154,7 +154,8 @@ void Server::_handle_read(size_t i) {
     } else if (parse_status == RequestParser::Complete) {
         _req = _req_p.getRequest();
         _res = _res_b.dispatch(_req, _configs[_clients[fd].server_block_index], _cgi);
-    } else {
+    } else if (parse_status == RequestParser::Incomplete) {
+        std::cout << "incomplete request from fd:" << fd << std::endl;
         return;
     }
 

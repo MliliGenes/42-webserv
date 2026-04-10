@@ -51,6 +51,9 @@ endef
 
 all: $(NAME)
 
+run: all
+	@./webserv config/www.config.json
+
 re: clean all
 
 clean: fclean_libs
