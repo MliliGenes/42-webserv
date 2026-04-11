@@ -130,61 +130,99 @@ std::string parse_header(const std::string& buf, const std::string& key) {
 }
 
 
+// void Server::_handle_read(size_t i) {
+//     int fd = _pollfds[i].fd;
+//     char buf[4096];
+//     int n = recv(fd, buf, sizeof(buf), 0);
+
+//     if (n < 0 && errno == EAGAIN) return;
+//     if (n <= 0) { _close_client(i); return; }
+
+//     _clients[fd].req_buf.append(buf, n);
+//     _clients[fd].last_active = time(NULL);
+
+//     // log
+//     size_t line_end = _clients[fd].req_buf.find("\r\n");
+//     std::cout << "fd:" << fd << " at server " << _clients[fd].server_block_index << "  " << _clients[fd].req_buf.substr(0, line_end) << std::endl;
+
+//     if (!request_complete(_clients[fd].req_buf)) {
+//         // check if body already exceeds the limit while still buffering
+//         size_t max = _configs[_clients[fd].server_block_index].clientMaxBodySize;
+//         if (_clients[fd].req_buf.size() > max) {
+//             std::cout << "fd:" << fd << " body too large — 413\n";
+//             _res = _res_b.buildError(413, _configs[_clients[fd].server_block_index]);
+//             _res.headers["Connection"] = "close";
+//             _clients[fd].res_buf  = _res.build();
+//             _clients[fd].req_buf.clear();
+//             _clients[fd].keep_alive = false;
+//             _pollfds[i].events = POLLOUT;
+//         }
+//         return;
+//     }
+
+//     _clients[fd].keep_alive = is_keep_alive(_clients[fd].req_buf);
+//     _req_p.reset();
+//     RequestParser::Status parse_status = _req_p.feed(_clients[fd].req_buf.c_str(), _clients[fd].req_buf.size());
+
+//     if (parse_status == RequestParser::Error) {
+//         std::cout << "fd:" << fd << " still building the response\n";
+//         _res = _res_b.buildError(_req_p.getErrorCode(), _configs[_clients[fd].server_block_index]);
+//     } else if (parse_status == RequestParser::Complete) {
+//         _req = _req_p.getRequest();
+//         _res = _res_b.dispatch(_req, _configs[_clients[fd].server_block_index], _cgi);
+//     } else if (parse_status == RequestParser::Incomplete) {
+//         std::cout << "incomplete request from fd:" << fd << std::endl;
+//         return;
+//     }
+
+//     _res.headers["Connection"] = _clients[fd].keep_alive ? "keep-alive" : "close";
+//     if (_res.headers.find("Content-Length") == _res.headers.end() &&
+//         _res.headers.find("content-length") == _res.headers.end()) {
+//         std::ostringstream len;
+//         len << _res.body.size();
+//         _res.headers["Content-Length"] = len.str();
+//     }
+
+//     _clients[fd].res_buf = _res.build();
+//     _clients[fd].req_buf.clear();
+//     _pollfds[i].events = POLLOUT;
+// }
+
 void Server::_handle_read(size_t i) {
     int fd = _pollfds[i].fd;
+    Client& c = _clients[fd];
+
     char buf[4096];
     int n = recv(fd, buf, sizeof(buf), 0);
-
     if (n < 0 && errno == EAGAIN) return;
     if (n <= 0) { _close_client(i); return; }
 
-    _clients[fd].req_buf.append(buf, n);
-    _clients[fd].last_active = time(NULL);
+    c.last_active = time(NULL);
 
-    // log
-    size_t line_end = _clients[fd].req_buf.find("\r\n");
-    std::cout << "fd:" << fd << " at server " << _clients[fd].server_block_index << "  " << _clients[fd].req_buf.substr(0, line_end) << std::endl;
+    // feed the raw bytes directly — no req_buf needed at all
+    RequestParser::Status status = c.req_parser.feed(buf, n);
 
-    if (!request_complete(_clients[fd].req_buf)) {
-        // check if body already exceeds the limit while still buffering
-        size_t max = _configs[_clients[fd].server_block_index].clientMaxBodySize;
-        if (_clients[fd].req_buf.size() > max) {
-            std::cout << "fd:" << fd << " body too large — 413\n";
-            _res = _res_b.buildError(413, _configs[_clients[fd].server_block_index]);
-            _res.headers["Connection"] = "close";
-            _clients[fd].res_buf  = _res.build();
-            _clients[fd].req_buf.clear();
-            _clients[fd].keep_alive = false;
-            _pollfds[i].events = POLLOUT;
-        }
-        return;
+    if (status == RequestParser::Incomplete)
+        return;  // parser is waiting for more data — come back on next POLLIN
+
+    if (status == RequestParser::Error) {
+        c.res = _res_b.buildError(c.req_parser.getErrorCode(), _configs[c.server_block_index]);
+    } else {
+        // Complete
+        c.req = c.req_parser.getRequest();
+        c.keep_alive = (c.req.headers.count("connection") &&
+                        c.req.headers.at("connection") == "keep-alive");
+        c.res = _res_b.dispatch(c.req, _configs[c.server_block_index], _cgi);
     }
 
-    _clients[fd].keep_alive = is_keep_alive(_clients[fd].req_buf);
-    _req_p.reset();
-    RequestParser::Status parse_status = _req_p.feed(_clients[fd].req_buf.c_str(), _clients[fd].req_buf.size());
-
-    if (parse_status == RequestParser::Error) {
-        std::cout << "fd:" << fd << " still building the response\n";
-        _res = _res_b.buildError(_req_p.getErrorCode(), _configs[_clients[fd].server_block_index]);
-    } else if (parse_status == RequestParser::Complete) {
-        _req = _req_p.getRequest();
-        _res = _res_b.dispatch(_req, _configs[_clients[fd].server_block_index], _cgi);
-    } else if (parse_status == RequestParser::Incomplete) {
-        std::cout << "incomplete request from fd:" << fd << std::endl;
-        return;
-    }
-
-    _res.headers["Connection"] = _clients[fd].keep_alive ? "keep-alive" : "close";
-    if (_res.headers.find("Content-Length") == _res.headers.end() &&
-        _res.headers.find("content-length") == _res.headers.end()) {
+    // add Connection header and build
+    c.res.headers["Connection"] = c.keep_alive ? "keep-alive" : "close";
+    if (!c.res.headers.count("Content-Length")) {
         std::ostringstream len;
-        len << _res.body.size();
-        _res.headers["Content-Length"] = len.str();
+        len << c.res.body.size();
+        c.res.headers["Content-Length"] = len.str();
     }
-
-    _clients[fd].res_buf = _res.build();
-    _clients[fd].req_buf.clear();
+    c.res_buf = c.res.build();
     _pollfds[i].events = POLLOUT;
 }
 
