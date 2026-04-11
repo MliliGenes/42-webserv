@@ -1,33 +1,67 @@
 [
     {
-        "server": {
-            "host": "127.0.0.1",
-            "port": 4000,
-            "server_name": [
-                "localhost"
-            ],
-            "client_max_body_size": "100M",
-            "root": "www",
-            "index": [
-                "index.html"
-            ],
-            "locations": [
-                {
-                    "path": "/",
-                    "methods": [
-                        "POST", "GET"
-                    ],
-                    "autoindex": true,
-                    "upload_enable" : true,
-                    "upload_store" : "/upload",
-                    "index": [
-                        "index.html"
-                    ],
-                    "cgi": {
-                        ".py": "/usr/bin/python3"
-                    }
-                }
-            ]
-        }
+      "server": {
+        "host": "127.0.0.1",
+        "port": 8080,
+        "server_name": ["webserv", "localhost"],
+        "client_max_body_size": "10M",
+  
+        "root": "./www",
+        "index": ["index.html"],
+  
+        "error_pages": {
+          "403": "./www/error/403.html",
+          "404": "./www/error/404.html",
+          "500": "./www/error/500.html",
+          "502": "./www/error/502.html",
+          "503": "./www/error/503.html",
+          "504": "./www/error/504.html"
+        },
+  
+        "locations": [
+          {
+            "path": "/",
+            "methods": ["GET"],
+            "root": "./www",
+            "index": ["index.html"],
+            "autoindex": false
+          },
+  
+          {
+            "path": "/submit",
+            "methods": ["POST"],
+            "root": "./www"
+          },
+  
+          {
+            "path": "/upload",
+            "methods": ["GET", "POST", "DELETE"],
+            "root": "./www",
+            "upload_enable": true,
+            "upload_store": "./www/upload"
+          },
+  
+          {
+            "path": "/cgi-bin",
+            "methods": ["GET", "POST"],
+            "root": "./www",
+            "cgi": {
+              ".py": "/usr/bin/python3",
+              ".php": "/usr/bin/php-cgi",
+              ".js": "/usr/bin/node",
+              ".sh": "/bin/bash"
+            }
+          },
+  
+          {
+            "path": "/redirect",
+            "methods" : ["GET"],
+            "redirect": {
+              "code": 200,
+              "url": "http://localhost:8080/index2.html"
+            }
+          }
+        ]
+      }
     }
-]
+  ]

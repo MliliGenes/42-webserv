@@ -30,8 +30,11 @@ int main (int ac, char ** av) {
 
     TrpValidatorContext ctx;
     if (!serversConfigArray.validate(parser.getAST(), ctx)) {
+        std::cerr << "\n--- Validation Errors ---" << std::endl;
         ctx.printErrors();
         return 1;
+    } else {
+        std::cout << "\ngood trip: Configuration is valid!" << std::endl;
     }
 
     try {
