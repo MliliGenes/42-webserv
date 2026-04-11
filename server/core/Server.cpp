@@ -165,6 +165,7 @@ void Server::_handle_read(size_t i) {
     RequestParser::Status parse_status = _req_p.feed(_clients[fd].req_buf.c_str(), _clients[fd].req_buf.size());
 
     if (parse_status == RequestParser::Error) {
+        std::cout << "fd:" << fd << " still building the response\n";
         _res = _res_b.buildError(_req_p.getErrorCode(), _configs[_clients[fd].server_block_index]);
     } else if (parse_status == RequestParser::Complete) {
         _req = _req_p.getRequest();
