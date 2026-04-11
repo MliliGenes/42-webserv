@@ -2,7 +2,7 @@
     {
       "server": {
         "host": "127.0.0.1",
-        "port": 8080,
+        "port": 3030,
         "server_name": ["webserv", "localhost"],
         "client_max_body_size": "10M",
   
@@ -57,8 +57,8 @@
             "path": "/redirect",
             "methods" : ["GET"],
             "redirect": {
-              "code": 200,
-              "url": "http://localhost:8080/index2.html"
+              "code": 301,
+              "url": "https://www.youtube.com/watch?v=1HfeGXgxoY8"
             }
           }
         ]
