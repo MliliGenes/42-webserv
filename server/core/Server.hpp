@@ -11,15 +11,29 @@
 #include "../request-response/response/ResponseBuilder.hpp"
 #include "../request-response/cookie-session/SessionManager.hpp"
 
-struct Client {
-    int         server_block_index;
+// struct Client {
+//     int         server_block_index;
 
+//     int         fd;
+//     bool        keep_alive;
+//     time_t      last_active;
+
+//     std::string req_buf;
+//     std::string res_buf;
+// };
+
+struct Client {
     int         fd;
     bool        keep_alive;
     time_t      last_active;
+    int         server_block_index;
 
-    std::string req_buf;
-    std::string res_buf;
+    RequestParser req_parser;   // stateful — owns the parse buffer
+    Request       req;          // populated on Complete
+    Response      res;          // built on Complete
+
+    std::string   res_buf;      // serialized bytes being drained to socket
+    // req_buf is GONE — parser owns the buffer internally
 };
 
 class Server {
@@ -42,10 +56,6 @@ class Server {
 		SessionManager	session;
 
 		ResponseBuilder _res_b;
-		RequestParser	_req_p;
-
-		Request			_req;
-		Response		_res;
 		cgihandler		_cgi;
 
     public:

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FILE UPLOAD // WEBSERV</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="noise"></div>
+
+<header>
+  <div class="logo">WS<span class="blink">_</span></div>
+  <nav>
+    <a href="index.html">HOME</a>
+    <a href="form.html">POST FORM</a>
+    <a href="upload.html" class="active">FILE UPLOAD</a>
+    <a href="delete.html">DELETE</a>
+    <a href="headers.html">HEADERS</a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <a href="index.html" class="back">← BACK</a>
+    <div class="tag">// upload.html — POST /upload  multipart/form-data</div>
+    <h1>FILE <span class="dim">UPLOAD TEST</span></h1>
+  </div>
+
+  <div class="two-col">
+
+    <div>
+      <div class="panel">
+        <div class="panel-title">// multipart/form-data</div>
+        <div class="field">
+          <label>UPLOAD ROUTE</label>
+          <input type="text" id="upload-path" value="/upload" placeholder="/upload">
+        </div>
+        <div class="field">
+          <label>SELECT FILE</label>
+          <input type="file" id="file-input">
+        </div>
+        <div id="file-info" style="font-family:var(--mono);font-size:0.72rem;color:var(--dim);margin-bottom:1rem;min-height:1.2rem;"></div>
+        <button class="btn amber" id="btn-upload">UPLOAD FILE →</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">// generate synthetic file</div>
+        <div class="field">
+          <label>FILE SIZE (KB)</label>
+          <input type="number" id="gen-size" value="128" min="1" max="10240">
+        </div>
+        <div class="field">
+          <label>FILENAME</label>
+          <input type="text" id="gen-name" value="test_payload.bin">
+        </div>
+        <button class="btn" id="btn-gen">GENERATE &amp; UPLOAD →</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="response-label">UPLOAD PROGRESS</div>
+      <div class="response-box" id="res-upload" style="min-height:80px">waiting...</div>
+
+      <br>
+
+      <div class="panel">
+        <div class="panel-title">// upload log</div>
+        <div class="response-box" id="upload-log" style="min-height:200px;color:var(--text)">no uploads yet</div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<footer>
+  <span>webserv · file upload</span>
+  <span id="ts"></span>
+</footer>
+
+<script>
+document.getElementById('ts').textContent = new Date().toISOString();
+const log = document.getElementById('upload-log');
+let logLines = [];
+
+function addLog(line) {
+  logLines.push('[' + new Date().toISOString().split('T')[1].slice(0,8) + '] ' + line);
+  log.textContent = logLines.join('\n');
+}
+
+function setRes(text, ok) {
+  const el = document.getElementById('res-upload');
+  el.textContent = text;
+  el.className = 'response-box ' + (ok === null ? '' : ok ? 'ok' : 'error');
+}
+
+// show file info on select
+document.getElementById('file-input').addEventListener('change', function() {
+  const f = this.files[0];
+  if (!f) return;
+  document.getElementById('file-info').textContent =
+    f.name + ' · ' + (f.size / 1024).toFixed(1) + ' KB · ' + f.type;
+});
+
+// real file upload
+document.getElementById('btn-upload').addEventListener('click', async function() {
+  const f = document.getElementById('file-input').files[0];
+  if (!f) { setRes('No file selected', false); return; }
+  const path = document.getElementById('upload-path').value || '/upload';
+
+  setRes('uploading ' + f.name + ' (' + (f.size/1024).toFixed(1) + ' KB)...', null);
+  addLog('START  ' + f.name + ' ' + f.size + 'B → ' + path);
+
+  const fd = new FormData();
+  fd.append('file', f, f.name);
+
+  const t0 = performance.now();
+  try {
+    const r = await fetch(path, { method: 'POST', body: fd });
+    const body = await r.text();
+    const ms = (performance.now() - t0).toFixed(0);
+    setRes('HTTP ' + r.status + ' ' + r.statusText + '  (' + ms + 'ms)\n\n' + body, r.ok);
+    addLog((r.ok ? 'OK    ' : 'FAIL  ') + r.status + '  ' + ms + 'ms  ' + f.name);
+  } catch(err) {
+    setRes('ERROR: ' + err.message, false);
+    addLog('ERROR ' + err.message);
+  }
+});
+
+// synthetic upload
+document.getElementById('btn-gen').addEventListener('click', async function() {
+  const kb   = parseInt(document.getElementById('gen-size').value);
+  const name = document.getElementById('gen-name').value || 'payload.bin';
+  const path = document.getElementById('upload-path').value || '/upload';
+
+  const bytes = new Uint8Array(kb * 1024);
+  crypto.getRandomValues(bytes);
+  const blob = new Blob([bytes], { type: 'application/octet-stream' });
+
+  setRes('uploading synthetic ' + kb + ' KB...', null);
+  addLog('START  synthetic:' + name + ' ' + (kb * 1024) + 'B → ' + path);
+
+  const fd = new FormData();
+  fd.append('file', blob, name);
+
+  const t0 = performance.now();
+  try {
+    const r = await fetch(path, { method: 'POST', body: fd });
+    const body = await r.text();
+    const ms = (performance.now() - t0).toFixed(0);
+    setRes('HTTP ' + r.status + ' ' + r.statusText + '  (' + ms + 'ms)\n\n' + body, r.ok);
+    addLog((r.ok ? 'OK    ' : 'FAIL  ') + r.status + '  ' + ms + 'ms  ' + name);
+  } catch(err) {
+    setRes('ERROR: ' + err.message, false);
+    addLog('ERROR ' + err.message);
+  }
+});
+</script>
+</body>
+</html>

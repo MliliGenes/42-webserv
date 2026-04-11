@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DELETE // WEBSERV</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="noise"></div>
+
+<header>
+  <div class="logo">WS<span class="blink">_</span></div>
+  <nav>
+    <a href="index.html">HOME</a>
+    <a href="form.html">POST FORM</a>
+    <a href="upload.html">FILE UPLOAD</a>
+    <a href="delete.html" class="active">DELETE</a>
+    <a href="headers.html">HEADERS</a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <a href="index.html" class="back">← BACK</a>
+    <div class="tag">// delete.html — DELETE /path</div>
+    <h1>DELETE <span class="dim">RESOURCE TEST</span></h1>
+  </div>
+
+  <div class="two-col">
+
+    <div>
+      <div class="panel">
+        <div class="panel-title">// single DELETE request</div>
+        <div class="field">
+          <label>TARGET PATH</label>
+          <input type="text" id="del-path" value="/upload/test_payload.bin" placeholder="/upload/filename">
+        </div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+          <button class="btn danger" id="btn-del">SEND DELETE →</button>
+          <button class="btn" id="btn-del404">TEST 404 →</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">// batch DELETE</div>
+        <div class="field">
+          <label>PATHS (one per line)</label>
+          <textarea id="batch-paths" style="min-height:120px">/upload/file1.txt
+/upload/file2.bin
+/upload/ghost.png</textarea>
+        </div>
+        <button class="btn danger" id="btn-batch">DELETE ALL →</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="response-label">RESPONSE</div>
+      <div class="response-box" id="res-del" style="min-height:100px">waiting...</div>
+      <br>
+      <div class="response-label">BATCH LOG</div>
+      <div class="response-box" id="res-batch" style="min-height:160px">waiting...</div>
+    </div>
+
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">// expected status codes</div>
+    <div class="info-row"><span class="info-key">File exists, DELETE allowed</span><span class="info-value">204 No Content</span></div>
+    <div class="info-row"><span class="info-key">File not found</span><span class="info-value">404 Not Found</span></div>
+    <div class="info-row"><span class="info-key">Route doesn't allow DELETE</span><span class="info-value">405 Method Not Allowed</span></div>
+    <div class="info-row"><span class="info-key">No permission</span><span class="info-value">403 Forbidden</span></div>
+  </div>
+
+</main>
+
+<footer>
+  <span>webserv · DELETE</span>
+  <span id="ts"></span>
+</footer>
+
+<script>
+document.getElementById('ts').textContent = new Date().toISOString();
+
+function setRes(id, text, ok) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'response-box ' + (ok === null ? '' : ok ? 'ok' : 'error');
+}
+
+document.getElementById('btn-del').addEventListener('click', async function() {
+  const path = document.getElementById('del-path').value;
+  setRes('res-del', 'sending DELETE ' + path + '...', null);
+  try {
+    const r = await fetch(path, { method: 'DELETE' });
+    const body = await r.text();
+    setRes('res-del',
+      'HTTP ' + r.status + ' ' + r.statusText + '\nPath: ' + path + '\n\n' + (body || '(empty body — correct for 204)'),
+      r.status === 204 || r.status === 200);
+  } catch(err) {
+    setRes('res-del', 'ERROR: ' + err.message, false);
+  }
+});
+
+document.getElementById('btn-del404').addEventListener('click', async function() {
+  const path = '/nonexistent_file_' + Date.now() + '.txt';
+  setRes('res-del', 'sending DELETE to ghost path: ' + path, null);
+  try {
+    const r = await fetch(path, { method: 'DELETE' });
+    const body = await r.text();
+    setRes('res-del',
+      'HTTP ' + r.status + ' ' + r.statusText + '\n(expected 404)\n\n' + body,
+      r.status === 404);
+  } catch(err) {
+    setRes('res-del', 'ERROR: ' + err.message, false);
+  }
+});
+
+document.getElementById('btn-batch').addEventListener('click', async function() {
+  const paths = document.getElementById('batch-paths').value
+    .split('\n').map(l => l.trim()).filter(Boolean);
+  const log = document.getElementById('res-batch');
+  log.textContent = '';
+  log.className = 'response-box';
+
+  for (const path of paths) {
+    try {
+      const r = await fetch(path, { method: 'DELETE' });
+      log.textContent += r.status + '  ' + path + '\n';
+    } catch(err) {
+      log.textContent += 'ERR  ' + path + '  ' + err.message + '\n';
+    }
+  }
+  log.className = 'response-box ok';
+});
+</script>
+</body>
+</html>

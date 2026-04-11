@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HEADERS // WEBSERV</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="noise"></div>
+
+<header>
+  <div class="logo">WS<span class="blink">_</span></div>
+  <nav>
+    <a href="index.html">HOME</a>
+    <a href="form.html">POST FORM</a>
+    <a href="upload.html">FILE UPLOAD</a>
+    <a href="delete.html">DELETE</a>
+    <a href="headers.html" class="active">HEADERS</a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <a href="index.html" class="back">← BACK</a>
+    <div class="tag">// headers.html — response header inspector</div>
+    <h1>HEADERS <span class="dim">INSPECTOR</span></h1>
+  </div>
+
+  <div class="two-col">
+
+    <div>
+      <div class="panel">
+        <div class="panel-title">// send request &amp; inspect response headers</div>
+        <div class="field">
+          <label>PATH</label>
+          <input type="text" id="hdr-path" value="/" placeholder="/any/path">
+        </div>
+        <div class="field">
+          <label>METHOD</label>
+          <select id="hdr-method">
+            <option>GET</option>
+            <option>POST</option>
+            <option>DELETE</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>EXTRA REQUEST HEADER (name: value)</label>
+          <input type="text" id="hdr-extra" placeholder="X-Test: hello">
+        </div>
+        <button class="btn" id="btn-hdr">INSPECT →</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">// quick checks</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem">
+          <button class="btn" data-path="/" data-method="GET">GET /  (expect 200)</button>
+          <button class="btn" data-path="/nonexistent" data-method="GET">GET /nonexistent  (expect 404)</button>
+          <button class="btn danger" data-path="/" data-method="DELETE">DELETE /  (expect 405)</button>
+          <button class="btn amber" data-path="/submit" data-method="POST">POST /submit  (body: hello)</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="response-label">RESPONSE HEADERS</div>
+      <div id="hdr-table" style="background:var(--surface);border:1px solid var(--border);padding:1rem;min-height:180px;margin-bottom:1.5rem;">
+        <div style="font-family:var(--mono);font-size:0.72rem;color:var(--dim)">send a request to inspect headers</div>
+      </div>
+
+      <div class="response-label">STATUS</div>
+      <div class="response-box" id="res-status">—</div>
+
+      <br>
+      <div class="response-label">BODY PREVIEW</div>
+      <div class="response-box" id="res-body" style="min-height:80px;max-height:200px;overflow:auto">—</div>
+    </div>
+
+  </div>
+
+  <!-- client-side info -->
+  <div class="panel">
+    <div class="panel-title">// client-side request info</div>
+    <div id="client-info"></div>
+  </div>
+
+</main>
+
+<footer>
+  <span>webserv · headers</span>
+  <span id="ts"></span>
+</footer>
+
+<script>
+document.getElementById('ts').textContent = new Date().toISOString();
+
+// client info
+const ci = document.getElementById('client-info');
+const rows = [
+  ['User-Agent',       navigator.userAgent],
+  ['Origin',          location.origin],
+  ['Host (page)',     location.host],
+  ['Protocol',        location.protocol],
+  ['Connection',      'keep-alive (browser default)'],
+];
+ci.innerHTML = rows.map(([k,v]) =>
+  `<div class="info-row"><span class="info-key">${k}</span><span class="info-value" style="font-family:var(--mono);font-size:0.72rem;word-break:break-all">${v}</span></div>`
+).join('');
+
+async function inspect(path, method, extraHeader) {
+  const headers = {};
+  if (extraHeader) {
+    const col = extraHeader.indexOf(':');
+    if (col > 0) headers[extraHeader.slice(0, col).trim()] = extraHeader.slice(col+1).trim();
+  }
+
+  const opts = { method, headers };
+  if (method === 'POST') { opts.body = 'hello from inspector'; headers['Content-Type'] = 'text/plain'; }
+
+  try {
+    const r = await fetch(path, opts);
+    const body = await r.text();
+
+    // status
+    const statusEl = document.getElementById('res-status');
+    statusEl.textContent = 'HTTP ' + r.status + ' ' + r.statusText;
+    statusEl.className = 'response-box ' + (r.ok ? 'ok' : 'error');
+
+    // headers table
+    const tbl = document.getElementById('hdr-table');
+    const entries = [];
+    r.headers.forEach((v, k) => entries.push([k, v]));
+    if (entries.length === 0) {
+      tbl.innerHTML = '<div style="font-family:var(--mono);font-size:0.72rem;color:var(--dim)">no headers exposed (CORS may be hiding them)</div>';
+    } else {
+      tbl.innerHTML = entries.map(([k,v]) =>
+        `<div class="info-row">
+          <span class="info-key">${k}</span>
+          <span class="info-value" style="font-family:var(--mono);font-size:0.72rem">${v}</span>
+        </div>`
+      ).join('');
+    }
+
+    // body
+    const bodyEl = document.getElementById('res-body');
+    bodyEl.textContent = body.slice(0, 600) + (body.length > 600 ? '\n…' : '');
+    bodyEl.className = 'response-box';
+
+  } catch(err) {
+    document.getElementById('res-status').textContent = 'ERROR: ' + err.message;
+    document.getElementById('res-status').className = 'response-box error';
+  }
+}
+
+document.getElementById('btn-hdr').addEventListener('click', function() {
+  const path   = document.getElementById('hdr-path').value || '/';
+  const method = document.getElementById('hdr-method').value;
+  const extra  = document.getElementById('hdr-extra').value;
+  inspect(path, method, extra);
+});
+
+document.querySelectorAll('[data-path]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    inspect(this.dataset.path, this.dataset.method, '');
+  });
+});
+</script>
+</body>
+</html>

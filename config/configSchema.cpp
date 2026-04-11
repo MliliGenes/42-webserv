@@ -47,7 +47,8 @@ TrpSchemaObject& serverSchema = factory.object()
     .property("index", &factory.array().item(&factory.string()))
     .property("locations", &factory.array().item(&routeSchema))
     .required("host")
-    .required("port");
+    .required("port")
+    .required("client_max_body_size");
 
 TrpSchemaObject& serverConfigWrapper = factory.object()
     .property("server", &serverSchema)

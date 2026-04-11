@@ -65,7 +65,7 @@ void Server::_setup_listeners() {
 
 void Server::_handle_accept(int listener_fd) {
     int cfd = accept(listener_fd, NULL, NULL);
-    if (cfd < 0) return;                  // EAGAIN or error — skip
+    if (cfd < 0) return;
     set_nonblocking(cfd);
 
     Client c;
@@ -73,10 +73,11 @@ void Server::_handle_accept(int listener_fd) {
     c.keep_alive = true;
     c.last_active = time(NULL);
     c.server_block_index = _listeners[listener_fd];
+    c.req_parser.setMaxBodySize(_configs[c.server_block_index].clientMaxBodySize);
     _clients[cfd] = c;
     _add_fd(cfd, POLLIN);
 
-    std::cout << "accepted fd:" << cfd << std::endl;
+    std::cout << "accepted  fd:" << cfd << std::endl;
 }
 
 void Server::_close_client(size_t i) {
@@ -86,25 +87,6 @@ void Server::_close_client(size_t i) {
     _clients.erase(fd);
     _pollfds[i] = _pollfds.back();
     _pollfds.pop_back();
-}
-
-// always bosting my emotions
-static bool is_keep_alive(const std::string& req_buf) {
-    // HTTP/1.1 defaults to keep-alive unless client says close
-    bool is_1_1 = req_buf.find("HTTP/1.1") != std::string::npos;
-
-    size_t pos = req_buf.find("Connection:");
-    if (pos == std::string::npos)
-        return is_1_1; // no header → follow version default
-
-    // read the value
-    pos += 11;
-    while (pos < req_buf.size() && req_buf[pos] == ' ') pos++;
-    std::string val = req_buf.substr(pos, req_buf.find("\r\n", pos) - pos);
-
-    if (val.find("close") != std::string::npos)    return false;
-    if (val.find("keep-alive") != std::string::npos) return true;
-    return is_1_1;
 }
 
 // put this helper above _handle_read
@@ -120,74 +102,6 @@ bool request_complete(const std::string& buf) {
     return true;
 }
 
-std::string parse_header(const std::string& buf, const std::string& key) {
-    size_t pos = buf.find(key + ":");
-    if (pos == std::string::npos) return "";
-    pos += key.size() + 1;
-    while (pos < buf.size() && buf[pos] == ' ') pos++;
-    size_t end = buf.find("\r\n", pos);
-    return buf.substr(pos, end - pos);
-}
-
-
-// void Server::_handle_read(size_t i) {
-//     int fd = _pollfds[i].fd;
-//     char buf[4096];
-//     int n = recv(fd, buf, sizeof(buf), 0);
-
-//     if (n < 0 && errno == EAGAIN) return;
-//     if (n <= 0) { _close_client(i); return; }
-
-//     _clients[fd].req_buf.append(buf, n);
-//     _clients[fd].last_active = time(NULL);
-
-//     // log
-//     size_t line_end = _clients[fd].req_buf.find("\r\n");
-//     std::cout << "fd:" << fd << " at server " << _clients[fd].server_block_index << "  " << _clients[fd].req_buf.substr(0, line_end) << std::endl;
-
-//     if (!request_complete(_clients[fd].req_buf)) {
-//         // check if body already exceeds the limit while still buffering
-//         size_t max = _configs[_clients[fd].server_block_index].clientMaxBodySize;
-//         if (_clients[fd].req_buf.size() > max) {
-//             std::cout << "fd:" << fd << " body too large — 413\n";
-//             _res = _res_b.buildError(413, _configs[_clients[fd].server_block_index]);
-//             _res.headers["Connection"] = "close";
-//             _clients[fd].res_buf  = _res.build();
-//             _clients[fd].req_buf.clear();
-//             _clients[fd].keep_alive = false;
-//             _pollfds[i].events = POLLOUT;
-//         }
-//         return;
-//     }
-
-//     _clients[fd].keep_alive = is_keep_alive(_clients[fd].req_buf);
-//     _req_p.reset();
-//     RequestParser::Status parse_status = _req_p.feed(_clients[fd].req_buf.c_str(), _clients[fd].req_buf.size());
-
-//     if (parse_status == RequestParser::Error) {
-//         std::cout << "fd:" << fd << " still building the response\n";
-//         _res = _res_b.buildError(_req_p.getErrorCode(), _configs[_clients[fd].server_block_index]);
-//     } else if (parse_status == RequestParser::Complete) {
-//         _req = _req_p.getRequest();
-//         _res = _res_b.dispatch(_req, _configs[_clients[fd].server_block_index], _cgi);
-//     } else if (parse_status == RequestParser::Incomplete) {
-//         std::cout << "incomplete request from fd:" << fd << std::endl;
-//         return;
-//     }
-
-//     _res.headers["Connection"] = _clients[fd].keep_alive ? "keep-alive" : "close";
-//     if (_res.headers.find("Content-Length") == _res.headers.end() &&
-//         _res.headers.find("content-length") == _res.headers.end()) {
-//         std::ostringstream len;
-//         len << _res.body.size();
-//         _res.headers["Content-Length"] = len.str();
-//     }
-
-//     _clients[fd].res_buf = _res.build();
-//     _clients[fd].req_buf.clear();
-//     _pollfds[i].events = POLLOUT;
-// }
-
 void Server::_handle_read(size_t i) {
     int fd = _pollfds[i].fd;
     Client& c = _clients[fd];
@@ -199,7 +113,7 @@ void Server::_handle_read(size_t i) {
 
     c.last_active = time(NULL);
 
-    // feed the raw bytes directly — no req_buf needed at all
+    // adnan nadi dar chunks XD, w ga3 ma9alali
     RequestParser::Status status = c.req_parser.feed(buf, n);
 
     if (status == RequestParser::Incomplete)
@@ -244,7 +158,9 @@ void Server::_handle_write(size_t i) {
 
     // response fully sent — branch here
     if (c.keep_alive) {
-        c.req_buf.clear();          // throw away the old request
+        // c.req_buf.clear();          // throw away the old request
+        c.req_parser.reset();
+        c.req_parser.setMaxBodySize(_configs[c.server_block_index].clientMaxBodySize);
         c.res_buf.clear();          // already empty but be explicit
         _pollfds[i].events = POLLIN; // wait for the NEXT request
     } else {
