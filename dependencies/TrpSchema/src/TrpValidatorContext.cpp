@@ -19,8 +19,18 @@ void TrpValidatorContext::pushError( ValidationError err ) {
 std::string TrpValidatorContext::getCurrentPath( void ) {
     std::string full_path;
 
-    for (TrpValidationPath::iterator it = paths.begin(); it != paths.end(); it ++) {
-        full_path += *it;
+    // Pre-calculate total size needed
+    size_t total_size = 0;
+    for (size_t i = 0; i < paths.size(); ++i) {
+        total_size += paths[i].length();
+    }
+    
+    // Reserve space upfront to avoid reallocations during append
+    full_path.reserve(total_size);
+    
+    // Use index-based iteration to avoid iterator invalidation
+    for (size_t i = 0; i < paths.size(); ++i) {
+        full_path += paths[i];
     }
 
     return full_path;
