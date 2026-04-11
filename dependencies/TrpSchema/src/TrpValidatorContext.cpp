@@ -1,4 +1,5 @@
 #include "../include/TrpValidatorContext.hpp"
+#include <sstream>
 
 TrpValidatorContext::TrpValidatorContext( void ) {}
 
@@ -17,23 +18,17 @@ void TrpValidatorContext::pushError( ValidationError err ) {
 }
 
 std::string TrpValidatorContext::getCurrentPath( void ) {
-    std::string full_path;
-
-    // Pre-calculate total size needed
-    size_t total_size = 0;
-    for (size_t i = 0; i < paths.size(); ++i) {
-        total_size += paths[i].length();
-    }
+    std::ostringstream oss;
     
-    // Reserve space upfront to avoid reallocations during append
-    full_path.reserve(total_size);
-    
-    // Use index-based iteration to avoid iterator invalidation
-    for (size_t i = 0; i < paths.size(); ++i) {
-        full_path += paths[i];
+    // Defensive approach: use stringstream with bounds checks
+    const size_t path_count = paths.size();
+    for (size_t i = 0; i < path_count; ++i) {
+        if (i < paths.size()) {
+            oss << paths[i];
+        }
     }
 
-    return full_path;
+    return oss.str();
 }
 
 const TrpValidationError& TrpValidatorContext::getErrors( void ) const {

@@ -3,7 +3,7 @@ DATE := $(shell date +"%Y-%m-%d %H:%M:%S")
 NAME = webserv
 
 CXX = c++
-CXX_FLAGS = -Wall -Wextra -Werror -std=c++98 -fsanitize=address -g3 
+CXX_FLAGS = -Wall -Wextra -Werror -std=c++98 -fsanitize=address -g3 -MMD -MP
 
 BUILD_DIR = build
 
@@ -81,6 +81,26 @@ $(BUILD_DIR)/$(CORE_DIR)/%.o: $(CORE_DIR)/%.cpp
 	@$(CXX) $(CXX_FLAGS) -c $< -o $@
 	@$(print_progress)
 
+$(BUILD_DIR)/$(COOKIE_DIR)/%.o: $(COOKIE_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXX_FLAGS) -c $< -o $@
+	@$(print_progress)
+
+$(BUILD_DIR)/$(REQ_DIR)/%.o: $(REQ_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXX_FLAGS) -c $< -o $@
+	@$(print_progress)
+
+$(BUILD_DIR)/$(RES_DIR)/%.o: $(RES_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXX_FLAGS) -c $< -o $@
+	@$(print_progress)
+
+$(BUILD_DIR)/$(CGI_DIR)/%.o: $(CGI_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXX_FLAGS) -c $< -o $@
+	@$(print_progress)
+
 $(TRP_JSON_LIB):
 	@make lib -C $(TRP_JSON_DIR)
 	@echo $(TRP_JSON_LIB) "is ready for use!"
@@ -88,5 +108,8 @@ $(TRP_JSON_LIB):
 $(TRP_SCHEMA_LIB):
 	@make lib -C $(TRP_SCHEMA_DIR)
 	@echo $(TRP_JSON_LIB) "is ready for use!"
+
+# Include header file dependencies
+-include $(ALL_OBJ:.o=.d)
 
 .PHONY: all clean fclean re fclean_libs
