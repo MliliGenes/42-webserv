@@ -2,8 +2,8 @@
 #include <fstream>
 #include <cstdio>
 #include <cctype>
-#include "ResponseBuilder.hpp"
-#include "Response.hpp"
+#include "include/ResponseBuilder.hpp"
+#include "include/Response.hpp"
 
 static std::string cgiHeaderName(const std::string& name)
 {
