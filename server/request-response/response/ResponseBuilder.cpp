@@ -166,11 +166,30 @@ Response ResponseBuilder::buildError(int code, const ServerConfig& config){
     return res;
 }
 
+static void printRequest(const Request& req)
+{
+    std::cout << "=== REQUEST ===" << std::endl;
+    std::cout << req.method << " " << req.path;
+    if (!req.query.empty())
+        std::cout << "?" << req.query;
+    std::cout << " " << req.version << std::endl;
+
+    std::map<std::string, std::string>::const_iterator it;
+    for (it = req.headers.begin(); it != req.headers.end(); ++it)
+        std::cout << it->first << ": " << it->second << std::endl;
+
+    std::cout << std::endl;
+    if (!req.body.empty())
+        std::cout << req.body << std::endl;
+    std::cout << "===============" << std::endl;
+}
+
 Response ResponseBuilder::handleGet(const Request&       req, const LocationConfig& route,
                                     const ServerConfig&   config, cgihandler& cgi){
     std::string root = route.root.empty() ? config.root : route.root;
     std::string fs_path = resolve_path(root, req.path);
 
+	printRequest(req);
 
     if(!route.cgi.empty())
     {
@@ -257,6 +276,7 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
         res.body = readFile(fs_path);
         res.headers["Content-Length"] = sizeToString(res.body.size());
         res.headers["Content-Type"] = getType(fs_path);
+		std::cout << res.build()<< std::endl;
         return res;
 
     }
@@ -307,7 +327,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
                     res.headers[hdr->first] = hdr->second;
                 res.headers["Content-Length"] = sizeToString(res.body.size());
                 if (res.headers.find("Content-Type") == res.headers.end())
-                    res.headers["Content-Type"] = "text/html";
+                    res.headers["Content-Type"] = getType(fs_path);
 
                 return res;
             }       
@@ -318,7 +338,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
         return buildError(403, config);
     if (route.uploadStore.empty())
         return buildError(500, config);
-    std::string filename = "upload"; // default name
+    std::string filename = ""; // default name
     std::map<std::string, std::string>::const_iterator it;
     it = req.headers.find("content-disposition");
     if (it != req.headers.end()){
@@ -329,7 +349,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
         if (fn_end != std::string::npos)
             filename = it->second.substr(fn, fn_end - fn);
     }
-    if (filename == "upload") {
+    if (filename.empty()) {
         std::ostringstream oss;
         oss << "upload_" << std::time(NULL);
         filename = oss.str();
@@ -345,7 +365,14 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
     res.status_message = statusMessage(201);
     res.headers["Content-Type"] = "text/html";
     res.headers["Content-Length"] = sizeToString(res.body.size());
-    res.headers["Location"] = "/" + filename;
+
+	std::string upload_url = route.uploadStore;
+	if (upload_url.substr(0, root.size()) == root)
+    	upload_url = upload_url.substr(root.size());
+	if (upload_url.empty() || upload_url[0] != '/')
+    	upload_url = "/" + upload_url;
+
+	res.headers["Location"] = upload_url + "/" + filename;
 
     return res;
 }
