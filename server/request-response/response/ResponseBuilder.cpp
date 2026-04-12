@@ -166,30 +166,11 @@ Response ResponseBuilder::buildError(int code, const ServerConfig& config){
     return res;
 }
 
-static void printRequest(const Request& req)
-{
-    std::cout << "=== REQUEST ===" << std::endl;
-    std::cout << req.method << " " << req.path;
-    if (!req.query.empty())
-        std::cout << "?" << req.query;
-    std::cout << " " << req.version << std::endl;
-
-    std::map<std::string, std::string>::const_iterator it;
-    for (it = req.headers.begin(); it != req.headers.end(); ++it)
-        std::cout << it->first << ": " << it->second << std::endl;
-
-    std::cout << std::endl;
-    if (!req.body.empty())
-        std::cout << req.body << std::endl;
-    std::cout << "===============" << std::endl;
-}
-
 Response ResponseBuilder::handleGet(const Request&       req, const LocationConfig& route,
                                     const ServerConfig&   config, cgihandler& cgi){
     std::string root = route.root.empty() ? config.root : route.root;
     std::string fs_path = resolve_path(root, req.path);
 
-	printRequest(req);
 
     if(!route.cgi.empty())
     {
@@ -276,11 +257,40 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
         res.body = readFile(fs_path);
         res.headers["Content-Length"] = sizeToString(res.body.size());
         res.headers["Content-Type"] = getType(fs_path);
-		std::cout << res.build()<< std::endl;
         return res;
 
     }
     return buildError(404, config);
+}
+
+static std::string extractMultipartFile(const std::string& body, const std::string& content_type,
+                                         std::string& out_filename)
+{
+    std::size_t b = content_type.find("boundary=");
+    if (b == std::string::npos) return "";
+    std::string boundary = "--" + content_type.substr(b + 9);
+
+    std::size_t start = body.find(boundary);
+    if (start == std::string::npos) return "";
+    start += boundary.size() + 2;
+
+    std::size_t header_end = body.find("\r\n\r\n", start);
+    if (header_end == std::string::npos) return "";
+
+    std::string part_headers = body.substr(start, header_end - start);
+    std::size_t fn = part_headers.find("filename=\"");
+    if (fn != std::string::npos) {
+        fn += 10;
+        std::size_t fn_end = part_headers.find("\"", fn);
+        if (fn_end != std::string::npos)
+            out_filename = part_headers.substr(fn, fn_end - fn);
+    }
+
+    std::size_t data_start = header_end + 4;
+    std::size_t data_end = body.find("\r\n" + boundary, data_start);
+    if (data_end == std::string::npos) return "";
+
+    return body.substr(data_start, data_end - data_start);
 }
 
 Response ResponseBuilder::handlePost(const Request&      req, const LocationConfig& route,
@@ -327,7 +337,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
                     res.headers[hdr->first] = hdr->second;
                 res.headers["Content-Length"] = sizeToString(res.body.size());
                 if (res.headers.find("Content-Type") == res.headers.end())
-                    res.headers["Content-Type"] = getType(fs_path);
+                    res.headers["Content-Type"] = "text/html";
 
                 return res;
             }       
@@ -339,24 +349,33 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
     if (route.uploadStore.empty())
         return buildError(500, config);
     std::string filename = ""; // default name
-    std::map<std::string, std::string>::const_iterator it;
-    it = req.headers.find("content-disposition");
-    if (it != req.headers.end()){
-        std::size_t fn = it->second.find("filename=\"");
-        if (fn != std::string::npos)
-            fn += 10;
-        std::size_t fn_end = it->second.find("\"", fn);
-        if (fn_end != std::string::npos)
-            filename = it->second.substr(fn, fn_end - fn);
+    std::string file_data;
+
+    std::string content_type;
+    std::map<std::string, std::string>::const_iterator ct;
+    ct = req.headers.find("content-type");
+    if (ct != req.headers.end())
+        content_type = ct->second;
+    if (content_type.find("multipart/form-data") != std::string::npos)
+    {
+        file_data = extractMultipartFile(req.body, content_type, filename);
+        if (file_data.empty() && filename.empty())
+            return buildError(400, config);
     }
+    else
+        file_data = req.body;
+
     if (filename.empty()) {
         std::ostringstream oss;
         oss << "upload_" << std::time(NULL);
         filename = oss.str();
     }
-    
+
+    if (filename.find("..") != std::string::npos || filename.find('/') != std::string::npos)
+        return buildError(400, config);
+
     std::string path = resolve_path(route.uploadStore, filename);
-    if (!writeFile(path, req.body))
+    if (!writeFile(path, file_data))
         return buildError(500, config);
     Response res;
 
@@ -365,14 +384,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
     res.status_message = statusMessage(201);
     res.headers["Content-Type"] = "text/html";
     res.headers["Content-Length"] = sizeToString(res.body.size());
-
-	std::string upload_url = route.uploadStore;
-	if (upload_url.substr(0, root.size()) == root)
-    	upload_url = upload_url.substr(root.size());
-	if (upload_url.empty() || upload_url[0] != '/')
-    	upload_url = "/" + upload_url;
-
-	res.headers["Location"] = upload_url + "/" + filename;
+    res.headers["Location"] = "/" + filename;
 
     return res;
 }
