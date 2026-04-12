@@ -2,12 +2,12 @@
 #define RESPONSE_BUILDER_HPP
 
 
-#include "../request/Request.hpp"
+#include "Request.hpp"
 #include "../../cgi/include/Cgi.hpp"
 #include "Response.hpp"
 #include "../../core/Config.hpp"
-#include "../cookie-session/SessionManager.hpp"
-#include "../request/RequestParser.hpp"
+#include "SessionManager.hpp"
+#include "RequestParser.hpp"
 #include <string>
 #include <sys/stat.h>
 #include <dirent.h>
