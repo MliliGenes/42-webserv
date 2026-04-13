@@ -1,0 +1,73 @@
+[
+  {
+    "server": {
+      "host": "127.0.0.1",
+      "port": 8080,
+      "server_name": ["localhost", "myserver"],
+
+      "client_max_body_size": "50M",
+
+      "root": "./www",
+      "index": ["index.html", "index.htm"],
+
+      "error_pages": {
+        "403": "./www/errors/403.html",
+        "404": "./www/errors/404.html",
+        "405": "./www/errors/404.html",
+        "500": "./www/errors/500.html"
+      },
+
+      "locations": [
+
+        {
+          "path": "/",
+          "methods": ["GET"],
+          "root": "./www",
+          "autoindex": false,
+          "index": ["index.html"]
+        },
+
+        {
+          "path": "/images",
+          "methods": ["GET"],
+          "root": "./www/images",
+          "autoindex": true
+        },
+
+        {
+          "path": "/upload",
+          "methods": ["POST"],
+          "upload_enable": true,
+          "upload_store": "./www/uploads",
+          "autoindex": false
+        },
+
+        {
+          "path": "/delete",
+          "methods": ["DELETE"],
+          "root": "./www/uploads"
+        },
+
+        {
+          "path": "/redirect",
+          "redirect": {
+            "code": 301,
+            "url": "http://localhost:8080/"
+          }
+        },
+
+        {
+          "path": "/cgi-bin",
+          "methods": ["GET", "POST"],
+          "root": "./www/cgi-bin",
+          "cgi": {
+            ".py": "/usr/bin/python3",
+            ".php": "/usr/bin/php-cgi",
+            ".sh": "/bin/bash"
+          }
+        }
+
+      ]
+    }
+  }
+]
