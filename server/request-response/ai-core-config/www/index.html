@@ -1,91 +1,28 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>webserv — Test Suite</title>
-    <link rel="stylesheet" href="/style.css">
+    <title>Webserv Test</title>
 </head>
 <body>
-<nav>
-    <span class="logo">webserv</span>
-    <a href="/">Home</a>
-    <a href="/upload.html">Upload</a>
-    <a href="/form.html">Form / CGI</a>
-    <a href="/session.html">Session</a>
-    <a href="/uploads">Files</a>
-</nav>
+    <h1>Welcome to Webserv</h1>
 
-<div class="container">
-    <h1>webserv Test Suite</h1>
-    <p>A live test panel for every feature of your HTTP/1.1 server.</p>
+    <h2>Upload File</h2>
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <button type="submit">Upload</button>
+    </form>
 
-    <div class="grid-2">
-        <div class="card">
-            <h2>GET</h2>
-            <p>Static files, directory listing, CGI execution.</p>
-            <a class="btn" href="/upload.html">Browse files →</a>
-        </div>
-        <div class="card">
-            <h2>POST</h2>
-            <p>File uploads (images, videos, any binary) and CGI form handling.</p>
-            <a class="btn" href="/form.html">Test form →</a>
-        </div>
-        <div class="card">
-            <h2>DELETE</h2>
-            <p>Delete an uploaded file by name.</p>
-            <a class="btn" href="/upload.html">Go to upload page →</a>
-        </div>
-        <div class="card">
-            <h2>Session / Cookie</h2>
-            <p>Session creation and persistence across requests.</p>
-            <a class="btn" href="/session.html">Test session →</a>
-        </div>
-    </div>
+    <h2>Test CGI (Python)</h2>
+    <form action="/cgi-bin/test.py" method="POST">
+        <input type="text" name="name" placeholder="Your name">
+        <button type="submit">Send</button>
+    </form>
 
-    <hr>
-
-    <div class="card">
-        <h2>Quick API console</h2>
-        <p>Fire any request directly from this page.</p>
-        <div class="grid-2">
-            <div>
-                <select id="qmethod">
-                    <option>GET</option>
-                    <option>POST</option>
-                    <option>DELETE</option>
-                </select>
-            </div>
-            <div>
-                <input type="text" id="qpath" value="/" placeholder="/path">
-            </div>
-        </div>
-        <textarea id="qbody" rows="3" placeholder='Request body (POST only)&#10;{"key":"value"}'></textarea>
-        <button id="qsend">Send</button>
-        <div id="qresult" class="result">Response will appear here…</div>
-    </div>
-</div>
-
-<script src="/script.js"></script>
-<script>
-document.getElementById('qsend').addEventListener('click', function() {
-    var method  = document.getElementById('qmethod').value;
-    var path    = document.getElementById('qpath').value;
-    var body    = document.getElementById('qbody').value;
-    var result  = document.getElementById('qresult');
-    var opts    = { method: method };
-    if (method === 'POST' && body) opts.body = body;
-
-    result.textContent = 'Sending…';
-    fetch(path, opts)
-        .then(function(r) {
-            return r.text().then(function(t) {
-                return 'HTTP ' + r.status + ' ' + r.statusText + '\n\n' + t;
-            });
-        })
-        .then(function(t) { result.textContent = t; result.className = 'result'; })
-        .catch(function(e) { result.textContent = 'Error: ' + e.message; result.className = 'result error'; });
-});
-</script>
+    <h2>Links</h2>
+    <ul>
+        <li><a href="/images/">Autoindex (images)</a></li>
+        <li><a href="/redirect">Redirect test</a></li>
+        <li><a href="/cgi-bin/test.py">CGI GET test</a></li>
+    </ul>
 </body>
 </html>
