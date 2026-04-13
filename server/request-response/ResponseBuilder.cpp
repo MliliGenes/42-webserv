@@ -2,6 +2,7 @@
 #include <fstream>
 #include <cstdio>
 #include <cctype>
+#include <string>
 #include "include/ResponseBuilder.hpp"
 #include "include/Response.hpp"
 
@@ -185,6 +186,10 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
 				cgirequest	cgireq;
 				cgiresponse	cgires;
                 std::string error;
+                if (!fileExists(fs_path))//>>>>>
+                {
+                    return buildError(404, config);
+                }
                 char resolved[4096];
                 if (::realpath(fs_path.c_str(), resolved))
                     fs_path = resolved;
@@ -199,7 +204,7 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
                 bool st = cgi.execute(cgireq, cgires, error);
                 if (!st)
                 {
-                    std::cout << error << std::endl;
+                    // std::cout << error << std::endl;
                     return buildError(500, config);
                 }
 
@@ -256,7 +261,7 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
         Response res;
         res.status_code = 200;
         res.status_message = statusMessage(200);
-        res.body = st.st_size > 50,000,000 ? "" : readFile(fs_path);
+        res.body = st.st_size > 50000000 ? "" : readFile(fs_path);
         res.headers["Content-Length"] = sizeToString(res.body.size());
         res.headers["Content-Type"] = getType(fs_path);
         return res;
@@ -330,7 +335,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
                 bool st = cgi.execute(cgireq, cgires, error);
                 if (!st)
                 {
-                    std::cout << error << std::endl; // error rah string kn amar fiha xmn error w9a3 la st return false
+                    // std::cout << error << std::endl;ah walakin ri fach tbri testi ama flpush mo7al wach khask dirha // error rah string kn amar fiha xmn error w9a3 la st return false
                     return buildError(500, config);
                 }
 				Response res;
@@ -348,7 +353,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
             }       
         }
     }
-    
+
     if (!route.uploadEnable)
         return buildError(403, config);
     if (route.uploadStore.empty())
@@ -434,13 +439,22 @@ bool ResponseBuilder::isDirectory(const std::string& path)
 
 std::string ResponseBuilder::resolve_path(std::string root, std::string path)
 {
-    std::string result = root;
-    if (!result.empty() && result[result.size() - 1] == '/' && path[0] == '/')
-        result.erase(result.size() - 1);
-    else if (path[0] != '/' && result[result.size() - 1] != '/')
-        result += "/";
-    result += path;
-    return result;
+    if (root.empty())
+        return path;
+
+    if (path.empty() || path == "/")
+    {
+        if (root[root.size() - 1] != '/')
+            return root + "/";
+    }
+
+    size_t pos = root.find_last_of('/');
+    std::string suffix = (pos != std::string::npos) ? root.substr(pos) : "";
+    if (!suffix.empty() && path.find(suffix) == 0)
+        path = path.substr(suffix.length());
+    if (root[root.size() - 1] != '/' && path[0] != '/')
+        root += "/";
+    return root + path;
 }
 
 
