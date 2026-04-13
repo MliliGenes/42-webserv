@@ -5,6 +5,10 @@
 #include <ctime>
 #include <map>
 
+
+#include <sstream>
+
+
 struct session
 {
     std::string id;

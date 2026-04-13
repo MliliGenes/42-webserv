@@ -23,6 +23,9 @@ std::string SessionManager::create()
 {
     session se;
 
+    std::ostringstream oss;
+    oss << std::time(NULL);
+    se.data["created_at"] = oss.str();
     se.id = genarate_ID();
     sessions_[se.id] = se;
     return se.id;
@@ -52,7 +55,7 @@ std::string SessionManager::genarate_ID(){
         std::srand(static_cast<unsigned int>(std::time(NULL)));
         Seeds = false;
     }
-    std::string hex = "123456789abcdef";
+    std::string hex = "0123456789abcdef";
     std::string id;
     id.reserve(32);
 

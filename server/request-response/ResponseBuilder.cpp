@@ -249,12 +249,14 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
     }
 
     handle_file:
+    struct stat st;
+    stat(fs_path.c_str(), &st);
     if (fileExists(fs_path))
     {
         Response res;
         res.status_code = 200;
         res.status_message = statusMessage(200);
-        res.body = readFile(fs_path);
+        res.body = st.st_size > 50,000,000 ? "" : readFile(fs_path);
         res.headers["Content-Length"] = sizeToString(res.body.size());
         res.headers["Content-Type"] = getType(fs_path);
         return res;
@@ -269,12 +271,15 @@ static std::string extractMultipartFile(const std::string& body, const std::stri
     std::size_t b = content_type.find("boundary=");
     if (b == std::string::npos) return "";
     std::string boundary = "--" + content_type.substr(b + 9);
-
+    
     std::size_t start = body.find(boundary);
+
     if (start == std::string::npos) return "";
     start += boundary.size() + 2;
 
+
     std::size_t header_end = body.find("\r\n\r\n", start);
+
     if (header_end == std::string::npos) return "";
 
     std::string part_headers = body.substr(start, header_end - start);
