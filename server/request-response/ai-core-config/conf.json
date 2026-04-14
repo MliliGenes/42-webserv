@@ -52,7 +52,7 @@
           "path": "/redirect",
           "redirect": {
             "code": 301,
-            "url": "http://localhost:8080/"
+            "url": "https://meta.intra.42.fr/clusters"
           }
         },
 

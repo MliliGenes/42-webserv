@@ -1,3 +1,3 @@
 
-echo "tester"
-echo "tester"
+echo "sh cgi tester"
+echo "shell tester"

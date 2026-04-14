@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
         Config config(ast);
         delete ast;
 
-        // config.prettyPrint();
+        config.prettyPrint();
 
         Server server(config);
         server.run();
