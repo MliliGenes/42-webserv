@@ -94,7 +94,7 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
     }
     if(!route->methods.empty() && route->methods.find(req.method) == route->methods.end())
         return buildError(405, config);
-    
+
     Response res;
     if (req.method == "GET")  res = handleGet(req, *route, config, cgi);
     else if (req.method == "POST")  res = handlePost(req, *route, config, cgi);
@@ -170,7 +170,7 @@ Response ResponseBuilder::buildError(int code, const ServerConfig& config){
 Response ResponseBuilder::handleGet(const Request&       req, const LocationConfig& route,
                                     const ServerConfig&   config, cgihandler& cgi){
     std::string root = route.root.empty() ? config.root : route.root;
-    std::string fs_path = resolve_path(root, req.path);
+    std::string fs_path = resolve_path(root, req.path, route.path);
 
 
     if(!route.cgi.empty())
@@ -308,7 +308,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
 {
     
     std::string root = route.root.empty() ? config.root : route.root;
-    std::string fs_path = resolve_path(root, req.path);
+    std::string fs_path = resolve_path(root, req.path, route.path);
 
     if (!route.cgi.empty())
     {
@@ -384,7 +384,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
     if (filename.find("..") != std::string::npos || filename.find('/') != std::string::npos)
         return buildError(400, config);
 
-    std::string path = resolve_path(route.uploadStore, filename);
+    std::string path = resolve_path(route.uploadStore, filename, route.path);
     if (!writeFile(path, file_data))
         return buildError(500, config);
     Response res;
@@ -404,7 +404,7 @@ Response ResponseBuilder::handleDelete(const Request&      req, const LocationCo
 {
     (void)cgi;
     std::string root = route.root.empty() ? config.root : route.root;
-    std::string fs_path = resolve_path(root, req.path);
+    std::string fs_path = resolve_path(root, req.path, route.path);
 
     if (!fileExists(fs_path))
         return buildError(404, config);
@@ -437,7 +437,7 @@ bool ResponseBuilder::isDirectory(const std::string& path)
     return S_ISDIR(st.st_mode);
 }
 
-std::string ResponseBuilder::resolve_path(std::string root, std::string path)
+std::string ResponseBuilder::resolve_path(std::string root, std::string path, std::string route_path)
 {
     if (root.empty())
         return path;
@@ -447,11 +447,7 @@ std::string ResponseBuilder::resolve_path(std::string root, std::string path)
         if (root[root.size() - 1] != '/')
             return root + "/";
     }
-
-    size_t pos = root.find_last_of('/');
-    std::string suffix = (pos != std::string::npos) ? root.substr(pos) : "";
-    if (!suffix.empty() && path.find(suffix) == 0)
-        path = path.substr(suffix.length());
+    path = path.substr(route_path.size());
     if (root[root.size() - 1] != '/' && path[0] != '/')
         root += "/";
     return root + path;
