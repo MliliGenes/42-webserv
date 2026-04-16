@@ -4,11 +4,11 @@
 
 <h1>Delete File</h1>
 
-<button onclick="deleteFile()">Delete test.pdf</button>
+<button onclick="deleteFile()">Delete a file</button>
 
 <script>
 function deleteFile() {
-    fetch("/delete/test.pdf", { method: "DELETE" })
+    fetch("/delete/test.bin", { method: "DELETE" })
         .then(res => res.text())
         .then(data => alert(data));
 }
