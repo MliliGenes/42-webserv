@@ -32,7 +32,7 @@
             "methods": ["POST"],
             "root": "./www",
             "upload_enable": true,
-            "upload_store": "zaba"
+            "upload_store": "./www/submit"
           },
   
           {

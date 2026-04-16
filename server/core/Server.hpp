@@ -32,8 +32,15 @@ struct Client {
     Request       req;          // populated on Complete
     Response      res;          // built on Complete
 
+    // hada for small bodies petits and shit XD 
     std::string   res_buf;      // serialized bytes being drained to socket
-    // req_buf is GONE — parser owns the buffer internally
+
+    // when the body is fat tbarklah, stream
+    std::ifstream res_file;
+    off_t         res_file_remaining;
+
+    Client() : fd(-1), keep_alive(true), last_active(0),
+            server_block_index(0), res_file_remaining(0) {}
 };
 
 class Server {
@@ -52,6 +59,7 @@ class Server {
         void _add_fd(int fd, short events);
         bool _is_listener(int fd);
         void _check_timeouts();
+        void _close_file(Client& c);
 
 		SessionManager	session;
 

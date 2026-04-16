@@ -249,12 +249,19 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
     }
 
     handle_file:
+    struct stat st;
+    stat(fs_path.c_str(), &st);
     if (fileExists(fs_path))
     {
         Response res;
         res.status_code = 200;
         res.status_message = statusMessage(200);
-        res.body = readFile(fs_path);
+        if (st.st_size > 100) {
+            res.body_path = fs_path;
+            res.body = readFile(fs_path);
+        }
+        else
+            res.body = readFile(fs_path);
         res.headers["Content-Length"] = sizeToString(res.body.size());
         res.headers["Content-Type"] = getType(fs_path);
         return res;

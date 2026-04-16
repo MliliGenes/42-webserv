@@ -63,20 +63,26 @@ void Server::_setup_listeners() {
     }
 }
 
+void Server::_close_file(Client& c) {
+    if (c.res_file.is_open()) {
+        c.res_file.close();
+        c.res_file_remaining = 0;
+    }
+}
+
 void Server::_handle_accept(int listener_fd) {
     int cfd = accept(listener_fd, NULL, NULL);
     if (cfd < 0) return;
     set_nonblocking(cfd);
 
-    Client c;
-    c.fd = cfd;
-    c.keep_alive = true;
-    c.last_active = time(NULL);
+    Client& c = _clients[cfd];
+    c.fd                 = cfd;
+    c.keep_alive         = true;
+    c.last_active        = time(NULL);
     c.server_block_index = _listeners[listener_fd];
     c.req_parser.setMaxBodySize(_configs[c.server_block_index].clientMaxBodySize);
-    _clients[cfd] = c;
-    _add_fd(cfd, POLLIN);
 
+    _add_fd(cfd, POLLIN);
     std::cout << "accepted  fd:" << cfd << std::endl;
 }
 
@@ -112,8 +118,6 @@ void Server::_handle_read(size_t i) {
     if (n <= 0) { _close_client(i); return; }
 
     c.last_active = time(NULL);
-
-    // std::cout << buf << std::endl;
     // adnan nadi dar chunks XD, w ga3 ma9alali
     RequestParser::Status status = c.req_parser.feed(buf, n);
 
@@ -137,29 +141,72 @@ void Server::_handle_read(size_t i) {
         len << c.res.body.size();
         c.res.headers["Content-Length"] = len.str();
     }
-    c.res_buf = c.res.build();
+
+    if (!c.res.body_path.empty()) {
+        c.res_file.open(c.res.body_path.c_str(), std::ios::binary);
+        if (!c.res_file.is_open()) {
+            c.res = _res_b.buildError(404, _configs[c.server_block_index]);
+            c.res_buf = c.res.build();
+        } else {
+            // get file size
+            c.res_file.seekg(0, std::ios::end);
+            c.res_file_remaining = c.res_file.tellg();
+            c.res_file.seekg(0, std::ios::beg);
+            c.res_buf = c.res.build_headers();
+        }
+    } else {
+        c.res_buf = c.res.build();
+    }
+
     _pollfds[i].events = POLLOUT;
 }
 
+// TODO: change this bullshit to the new logic
 void Server::_handle_write(size_t i) {
     int fd = _pollfds[i].fd;
     Client& c = _clients[fd];
 
-    int n = send(fd, c.res_buf.c_str(), c.res_buf.size(), 0);
-    if (n < 0 && errno == EAGAIN) return;
-    if (n < 0) { 
-        _close_client(i); return;
+    if (!c.res_buf.empty()) {
+        int n = send(fd, c.res_buf.c_str(), c.res_buf.size(), 0);
+        if (n < 0 && errno == EAGAIN) return;
+        if (n < 0) { _close_client(i); return; }
+        c.res_buf.erase(0, n);
+        c.last_active = time(NULL);
+        if (!c.res_buf.empty()) return;
     }
 
-    c.res_buf.erase(0, n);
-    c.last_active = time(NULL);
+    #define FILE_CHUNK 16384
 
-    // still have more to pollout go back to loop
+    if (c.res_file.is_open()) {
+        if (c.res_file_remaining > 0) {
+            char chunk[FILE_CHUNK];
+            std::streamsize to_read = std::min((off_t)FILE_CHUNK, c.res_file_remaining);
+
+            c.res_file.read(chunk, to_read);
+            std::streamsize r = c.res_file.gcount(); // actual bytes read
+            if (r <= 0) { _close_file(c); _close_client(i); return; }
+
+            ssize_t sent = send(fd, chunk, r, 0);
+            if (sent < 0 && errno == EAGAIN) {
+                // seek back — re-read same bytes next POLLOUT
+                c.res_file.seekg(-r, std::ios::cur);
+                return;
+            }
+            if (sent < 0) { _close_file(c); _close_client(i); return; }
+
+            if (sent < r)
+                c.res_file.seekg(-(r - sent), std::ios::cur);
+
+            c.res_file_remaining -= sent;
+            c.last_active = time(NULL);
+            return;
+        }
+        _close_file(c);
+    }
+
     if (!c.res_buf.empty()) return;
 
-    // response fully sent — branch here
     if (c.keep_alive) {
-        // c.req_buf.clear();          // throw away the old request
         c.req_parser.reset();
         c.req_parser.setMaxBodySize(_configs[c.server_block_index].clientMaxBodySize);
         c.res_buf.clear();          // already empty but be explicit
