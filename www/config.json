@@ -30,7 +30,9 @@
           {
             "path": "/submit",
             "methods": ["POST"],
-            "root": "./www"
+            "root": "./www",
+            "upload_enable": true,
+            "upload_store": "zaba"
           },
   
           {

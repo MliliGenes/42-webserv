@@ -113,6 +113,7 @@ void Server::_handle_read(size_t i) {
 
     c.last_active = time(NULL);
 
+    // std::cout << buf << std::endl;
     // adnan nadi dar chunks XD, w ga3 ma9alali
     RequestParser::Status status = c.req_parser.feed(buf, n);
 
