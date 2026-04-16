@@ -1,73 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload — webserv</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
+<html>
 <body>
-<nav>
-    <span class="logo">webserv</span>
-    <a href="/">Home</a>
-    <a href="/upload.html">Upload</a>
-    <a href="/form.html">Form / CGI</a>
-    <a href="/session.html">Session</a>
-    <a href="/uploads">Files</a>
-</nav>
 
-<div class="container">
-    <h1>File Upload</h1>
-    <p>Upload images, videos, or any file. Uses <span class="method-tag post">POST</span>
-       multipart/form-data to <code>/uploads</code>.</p>
+<h1>Upload File</h1>
 
-    <div class="card">
-        <h2>Upload files</h2>
-        <div id="drop-zone" class="drop-zone">
-            <div class="icon">📂</div>
-            <div>Drop files here or <strong>click to browse</strong></div>
-            <div style="font-size:0.8rem; margin-top:0.3rem; color:#555">
-                Images, videos, documents — any file
-            </div>
-        </div>
-        <input type="file" id="file-input" multiple style="display:none">
-        <div id="file-list" class="file-list"></div>
-        <button id="upload-btn">Upload</button>
-        <div id="upload-result" class="result" style="display:none"></div>
-        <div id="gallery" style="margin-top:1rem; display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
-    </div>
+<form action="/upload" method="POST" enctype="multipart/form-data">
+    <input type="file" name="file">
+    <button type="submit">Upload</button>
+</form>
 
-    <div class="card">
-        <h2>Uploaded files <span class="badge badge-blue" id="file-count">…</span></h2>
-        <p>Click a name to view. Hit Delete to remove it
-           (<span class="method-tag delete">DELETE</span> <code>/uploads/:name</code>).</p>
-        <div id="uploaded-list"></div>
-    </div>
-
-    <div class="card">
-        <h2>Manual DELETE</h2>
-        <input type="text" id="delete-name" placeholder="filename.txt">
-        <button id="delete-btn">Delete</button>
-        <div id="delete-result" class="result" style="display:none"></div>
-    </div>
-</div>
-
-<script src="/script.js"></script>
-<script>
-// show result divs as soon as there's content
-['upload-result','delete-result'].forEach(function(id) {
-    var el = document.getElementById(id);
-    var obs = new MutationObserver(function() {
-        el.style.display = el.textContent.trim() ? '' : 'none';
-    });
-    obs.observe(el, { childList: true, characterData: true, subtree: true });
-});
-// update badge count after list renders
-var listEl = document.getElementById('uploaded-list');
-new MutationObserver(function() {
-    document.getElementById('file-count').textContent =
-        listEl.querySelectorAll('.file-item').length;
-}).observe(listEl, { childList: true });
-</script>
 </body>
 </html>
