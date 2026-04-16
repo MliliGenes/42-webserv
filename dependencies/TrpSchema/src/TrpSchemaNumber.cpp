@@ -39,7 +39,6 @@ bool TrpSchemaNumber::validate(ITrpJsonValue* value, TrpValidatorContext& ctx) c
     }
 
     TrpJsonNumber* nbr = static_cast<TrpJsonNumber*>(value);
-
     if ( has_max && nbr->getValue() > max_value ) {
         ValidationError err;
 

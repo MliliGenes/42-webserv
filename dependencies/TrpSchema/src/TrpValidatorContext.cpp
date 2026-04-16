@@ -18,17 +18,15 @@ void TrpValidatorContext::pushError( ValidationError err ) {
 }
 
 std::string TrpValidatorContext::getCurrentPath( void ) {
-    std::ostringstream oss;
+    std::string full_path;
     
-    // Defensive approach: use stringstream with bounds checks
-    const size_t path_count = paths.size();
-    for (size_t i = 0; i < path_count; ++i) {
-        if (i < paths.size()) {
-            oss << paths[i];
-        }
+    //  FUNNY SHIIIIIT
+    for (TrpValidationPath::iterator it = paths.begin(); it != paths.end(); it++) {
+        std::string p(*it);
+        full_path.append(p);
     }
 
-    return oss.str();
+    return full_path;
 }
 
 const TrpValidationError& TrpValidatorContext::getErrors( void ) const {

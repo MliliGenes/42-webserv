@@ -256,9 +256,9 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
         Response res;
         res.status_code = 200;
         res.status_message = statusMessage(200);
-        if (st.st_size > 100) {
+        if (st.st_size > 64 * 1024) {
             res.body_path = fs_path;
-            res.body = readFile(fs_path);
+            res.body = "";
         }
         else
             res.body = readFile(fs_path);
@@ -268,6 +268,49 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
 
     }
     return buildError(404, config);
+}
+
+// BIBA ADNAN
+std::string extractMultipartBody(const std::string& body,
+                                        const std::string& content_type)
+{
+    // pull boundary from:  multipart/form-data; boundary=----WebKitFormBoundary...
+    std::size_t b = content_type.find("boundary=");
+    if (b == std::string::npos) return body;
+    std::string boundary = "--" + content_type.substr(b + 9);
+
+    // strip optional quotes around boundary value
+    if (!boundary.empty() && boundary[2] == '"') {
+        boundary = "--" + content_type.substr(b + 10);
+        std::size_t q = boundary.find('"');
+        if (q != std::string::npos) boundary = boundary.substr(0, q);
+    }
+
+    // find the first part's header block end (\r\n\r\n after the boundary line)
+    std::size_t part_start = body.find(boundary);
+    if (part_start == std::string::npos) return body;
+    part_start += boundary.size();               // skip past boundary line
+    if (part_start < body.size() && body[part_start] == '\r') part_start++;
+    if (part_start < body.size() && body[part_start] == '\n') part_start++;
+
+    // skip the part headers (Content-Disposition, Content-Type, etc.)
+    std::size_t header_end = body.find("\r\n\r\n", part_start);
+    if (header_end == std::string::npos) return body;
+    std::size_t data_start = header_end + 4;     // first byte of actual file data
+
+    // find the closing boundary
+    std::string end_boundary = "\r\n" + boundary + "--";
+    std::size_t data_end = body.find(end_boundary, data_start);
+    if (data_end == std::string::npos) {
+        // fallback: try without the leading \r\n
+        data_end = body.find(boundary + "--", data_start);
+        if (data_end == std::string::npos)
+            data_end = body.size();
+        else if (data_end >= 2 && body[data_end-2] == '\r' && body[data_end-1] == '\n')
+            data_end -= 2; // trim the \r\n before the boundary
+    }
+
+    return body.substr(data_start, data_end - data_start);
 }
 
 Response ResponseBuilder::handlePost(const Request&      req, const LocationConfig& route,
@@ -310,7 +353,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
 				res.status_code = cgires.status_code;
 				res.status_message = statusMessage(res.status_code);
                 for (std::vector<std::pair<std::string, std::string> >::const_iterator hdr = cgires.headers.begin();
-                     hdr != cgires.headers.end(); ++hdr)
+                    hdr != cgires.headers.end(); ++hdr)
                     res.headers[hdr->first] = hdr->second;
                 res.headers["Content-Length"] = sizeToString(res.body.size());
                 if (res.headers.find("Content-Type") == res.headers.end())
@@ -343,6 +386,14 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
     }
     
     std::string path = resolve_path(route.uploadStore, filename);
+
+    // std::string content_type;
+    // std::map<std::string, std::string>::const_iterator ct = req.headers.find("content-type");
+    // if (ct != req.headers.end())
+    //     content_type = ct->second;
+
+    // std::string file_data = extractMultipartBody(req.body, content_type);
+
     if (!writeFile(path, req.body))
         return buildError(500, config);
     Response res;

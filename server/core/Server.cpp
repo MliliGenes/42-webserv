@@ -121,20 +121,17 @@ void Server::_handle_read(size_t i) {
     // adnan nadi dar chunks XD, w ga3 ma9alali
     RequestParser::Status status = c.req_parser.feed(buf, n);
 
-    if (status == RequestParser::Incomplete)
-        return;  // parser is waiting for more data — come back on next POLLIN
+    if (status == RequestParser::Incomplete) return;
 
     if (status == RequestParser::Error) {
         c.res = _res_b.buildError(c.req_parser.getErrorCode(), _configs[c.server_block_index]);
     } else {
-        // Complete
         c.req = c.req_parser.getRequest();
         c.keep_alive = (c.req.headers.count("connection") &&
                         c.req.headers.at("connection") == "keep-alive");
         c.res = _res_b.dispatch(c.req, _configs[c.server_block_index], _cgi);
     }
 
-    // add Connection header and build
     c.res.headers["Connection"] = c.keep_alive ? "keep-alive" : "close";
     if (!c.res.headers.count("Content-Length")) {
         std::ostringstream len;
@@ -148,7 +145,6 @@ void Server::_handle_read(size_t i) {
             c.res = _res_b.buildError(404, _configs[c.server_block_index]);
             c.res_buf = c.res.build();
         } else {
-            // get file size
             c.res_file.seekg(0, std::ios::end);
             c.res_file_remaining = c.res_file.tellg();
             c.res_file.seekg(0, std::ios::beg);
@@ -175,7 +171,7 @@ void Server::_handle_write(size_t i) {
         if (!c.res_buf.empty()) return;
     }
 
-    #define FILE_CHUNK 16384
+    #define FILE_CHUNK 1000000
 
     if (c.res_file.is_open()) {
         if (c.res_file_remaining > 0) {
@@ -183,12 +179,12 @@ void Server::_handle_write(size_t i) {
             std::streamsize to_read = std::min((off_t)FILE_CHUNK, c.res_file_remaining);
 
             c.res_file.read(chunk, to_read);
-            std::streamsize r = c.res_file.gcount(); // actual bytes read
+            std::cout << chunk << std::endl;
+            std::streamsize r = c.res_file.gcount();
             if (r <= 0) { _close_file(c); _close_client(i); return; }
 
             ssize_t sent = send(fd, chunk, r, 0);
             if (sent < 0 && errno == EAGAIN) {
-                // seek back — re-read same bytes next POLLOUT
                 c.res_file.seekg(-r, std::ios::cur);
                 return;
             }
@@ -209,10 +205,10 @@ void Server::_handle_write(size_t i) {
     if (c.keep_alive) {
         c.req_parser.reset();
         c.req_parser.setMaxBodySize(_configs[c.server_block_index].clientMaxBodySize);
-        c.res_buf.clear();          // already empty but be explicit
-        _pollfds[i].events = POLLIN; // wait for the NEXT request
+        c.res_buf.clear();
+        _pollfds[i].events = POLLIN;
     } else {
-        _close_client(i);           // Connection: close → tear down
+        _close_client(i);
     }
 }
 
@@ -224,7 +220,7 @@ void Server::_check_timeouts() {
         if (_is_listener(fd)) { i++; continue; }
         if (now - _clients[fd].last_active > 30) {
             std::cout << "timeout  fd:" << fd << std::endl;
-            _close_client(i); // no i++ — swap-and-pop put a new fd at index i
+            _close_client(i);
         } else {
             i++;
         }
