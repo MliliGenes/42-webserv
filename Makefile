@@ -3,7 +3,7 @@ DATE := $(shell date +"%Y-%m-%d %H:%M:%S")
 NAME = webserv
 
 CXX = c++
-CXX_FLAGS = -Wall -Wextra -Werror -std=c++98 #-fsanitize=address -g3 -MMD -MP
+CXX_FLAGS = -Wall -Wextra -Werror -std=c++98 -fsanitize=address -g3 -MMD -MP
 
 BUILD_DIR = build
 
