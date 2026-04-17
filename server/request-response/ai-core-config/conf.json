@@ -5,7 +5,7 @@
       "port": 8080,
       "server_name": ["localhost", "myserver"],
 
-      "client_max_body_size": "90M",
+      "client_max_body_size": "70M",
 
       "root": "./www",
       "index": ["index.html", "index.htm"],

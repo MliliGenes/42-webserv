@@ -1,8 +1,10 @@
-#!/usr/bin/env python3
+# Example using CGI / web request environment
+
 import os
 
-print("Content-Type: text/plain")
-print()
+cookies = os.environ.get("HTTP_COOKIE", "")
 
-for k, v in os.environ.items():
-    print(f"{k}={v}")
+if "session_id=" in cookies:
+    print("we are inside session")
+else:
+    print("we are not bro")

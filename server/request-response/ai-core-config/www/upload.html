@@ -4,10 +4,65 @@
 
 <h1>Upload File</h1>
 
-<form action="/upload" method="POST" enctype="multipart/form-data">
-    <input type="file" name="file">
+<form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+    <input type="file" name="file" id="fileInput">
     <button type="submit">Upload</button>
 </form>
+
+<br>
+
+<progress id="progressBar" value="0" max="100" style="width:300px; display:none;"></progress>
+<p id="status"></p>
+
+<script>
+document.getElementById("uploadForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    const fileInput = document.getElementById("fileInput");
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert("Select a file first");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.open("POST", "/upload", true);
+
+    const progressBar = document.getElementById("progressBar");
+    const status = document.getElementById("status");
+
+    progressBar.style.display = "block";
+    progressBar.value = 0;
+    status.textContent = "Uploading...";
+
+    xhr.upload.addEventListener("progress", function(e) {
+        if (e.lengthComputable) {
+            const percent = (e.loaded / e.total) * 100;
+            progressBar.value = percent;
+            status.textContent = Math.round(percent) + "%";
+        }
+    });
+
+    xhr.onload = function() {
+        if (xhr.status == 200 || xhr.status == 201) {
+            status.textContent = "Upload Complete!";
+        } else {
+            status.textContent = "Upload Failed!";
+        }
+    };
+
+    xhr.onerror = function() {
+        status.textContent = "Error أثناء الرفع";
+    };
+
+    xhr.send(formData);
+});
+</script>
 
 </body>
 </html>

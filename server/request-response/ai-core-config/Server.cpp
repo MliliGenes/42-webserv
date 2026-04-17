@@ -99,16 +99,21 @@ void Server::_handle_read(size_t i) {
 
     c.last_active = time(NULL);
 
+    // If we already have a pending error response queued, just drain
+    // the socket and wait for the write to complete
+    if (_pollfds[i].events == POLLOUT) return;  // <-- ADD THIS
+
     RequestParser::Status status = c.req_parser.feed(buf, n);
 
     if (status == RequestParser::Incomplete)
         return;
 
     if (status == RequestParser::Error) {
+        c.keep_alive = false;  // <-- FORCE CLOSE on error
         c.res = _res_b.buildError(c.req_parser.getErrorCode(),
-                                   _configs[c.server_block_index]);
+                                  _configs[c.server_block_index]);
     } else {
-        c.req       = c.req_parser.getRequest();
+        c.req        = c.req_parser.getRequest();
         c.keep_alive = (c.req.headers.count("connection") &&
                         c.req.headers.at("connection") == "keep-alive");
         c.res = _res_b.dispatch(c.req, _configs[c.server_block_index], _cgi);
