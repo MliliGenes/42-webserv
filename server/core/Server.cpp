@@ -153,7 +153,6 @@ void Server::_handle_read(size_t i) {
     } else {
         c.res_buf = c.res.build();
     }
-
     _pollfds[i].events = POLLOUT;
 }
 
@@ -179,7 +178,6 @@ void Server::_handle_write(size_t i) {
             std::streamsize to_read = std::min((off_t)FILE_CHUNK, c.res_file_remaining);
 
             c.res_file.read(chunk, to_read);
-            std::cout << chunk << std::endl;
             std::streamsize r = c.res_file.gcount();
             if (r <= 0) { _close_file(c); _close_client(i); return; }
 

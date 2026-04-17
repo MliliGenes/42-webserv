@@ -2,9 +2,9 @@
     {
       "server": {
         "host": "127.0.0.1",
-        "port": 8080,
+        "port": 3030,
         "server_name": ["webserv", "localhost"],
-        "client_max_body_size": "5G",
+        "client_max_body_size": "1G",
         "root": "./www",
         "index": ["index.html"],
   

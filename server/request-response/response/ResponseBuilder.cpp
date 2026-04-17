@@ -256,13 +256,11 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
         Response res;
         res.status_code = 200;
         res.status_message = statusMessage(200);
-        if (st.st_size > 64 * 1024) {
+        if (st.st_size > 16 * 1024)
             res.body_path = fs_path;
-            res.body = "";
-        }
         else
             res.body = readFile(fs_path);
-        res.headers["Content-Length"] = sizeToString(res.body.size());
+        res.headers["Content-Length"] = sizeToString(st.st_size);
         res.headers["Content-Type"] = getType(fs_path);
         return res;
 
@@ -270,7 +268,7 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
     return buildError(404, config);
 }
 
-// BIBA ADNAN
+// BIBA
 std::string extractMultipartBody(const std::string& body,
                                         const std::string& content_type)
 {
@@ -348,6 +346,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
                     std::cout << error << std::endl; // error rah string kn amar fiha xmn error w9a3 la st return false
                     return buildError(500, config);
                 }
+
 				Response res;
 				res.body = cgires.body;
 				res.status_code = cgires.status_code;
@@ -387,14 +386,14 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
     
     std::string path = resolve_path(route.uploadStore, filename);
 
-    // std::string content_type;
-    // std::map<std::string, std::string>::const_iterator ct = req.headers.find("content-type");
-    // if (ct != req.headers.end())
-    //     content_type = ct->second;
+    std::string content_type;
+    std::map<std::string, std::string>::const_iterator ct = req.headers.find("content-type");
+    if (ct != req.headers.end())
+        content_type = ct->second;
 
-    // std::string file_data = extractMultipartBody(req.body, content_type);
+    std::string file_data = extractMultipartBody(req.body, content_type);
 
-    if (!writeFile(path, req.body))
+    if (!writeFile(path, file_data))
         return buildError(500, config);
     Response res;
 
