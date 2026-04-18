@@ -77,6 +77,16 @@ LocationConfig get_location(TrpJsonObject* locationBlock) {
         }
     }
 
+    if (locationBlock->find("redirect")) {
+        TrpJsonObject* redObj = static_cast<TrpJsonObject*>(locationBlock->find("redirect"));
+        int code = static_cast<TrpJsonNumber *>(redObj->find("code"))->getValue();
+        std::string url = static_cast<TrpJsonString *>(redObj->find("url"))->getValue();
+
+        locConfig.redirect.code = code;
+        locConfig.redirect.url = url;
+        locConfig.redirect.enabled = true;
+    }
+
     return locConfig;
 }
 

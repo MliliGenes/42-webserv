@@ -10,7 +10,8 @@
 #include <iostream>
 #include <stdexcept>
 
-Server::Server(const Config& cfg) : _configs(cfg.servers()) {}
+Server::Server(const Config& cfg) : _configs(cfg.servers()), _res_b(session) {
+}
 
 static void set_nonblocking(int fd) {
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
@@ -55,24 +56,34 @@ void Server::_setup_listeners() {
         if (listen(fd, 128) < 0)
             throw std::runtime_error("listen() failed");
 
-        _listeners.insert(fd);
+        _listeners[fd] = i;
         _add_fd(fd, POLLIN);
 
-        std::cout << "listening on " << srv.host << ":" << srv.port << "  fd:" << fd << std::endl;
+        std::cout << "listening on http://" << srv.host << ":" << srv.port << "  fd:" << fd << std::endl;
+    }
+}
+
+void Server::_close_file(Client& c) {
+    if (c.res_file.is_open()) {
+        c.res_file.close();
+        c.res_file_remaining = 0;
     }
 }
 
 void Server::_handle_accept(int listener_fd) {
     int cfd = accept(listener_fd, NULL, NULL);
-    if (cfd < 0) return;                  // EAGAIN or error — skip
+    if (cfd < 0) return;
     set_nonblocking(cfd);
 
-    Client c;
-    c.fd = cfd;
-    _clients[cfd] = c;
-    _add_fd(cfd, POLLIN);
+    Client& c = _clients[cfd];
+    c.fd                 = cfd;
+    c.keep_alive         = true;
+    c.last_active        = time(NULL);
+    c.server_block_index = _listeners[listener_fd];
+    c.req_parser.setMaxBodySize(_configs[c.server_block_index].clientMaxBodySize);
 
-    std::cout << "accepted fd:" << cfd << std::endl;
+    _add_fd(cfd, POLLIN);
+    std::cout << "accepted  fd:" << cfd << std::endl;
 }
 
 void Server::_close_client(size_t i) {
@@ -97,220 +108,121 @@ bool request_complete(const std::string& buf) {
     return true;
 }
 
-static std::string parse_header(const std::string& buf, const std::string& key) {
-    size_t pos = buf.find(key + ":");
-    if (pos == std::string::npos) return "";
-    pos += key.size() + 1;
-    while (pos < buf.size() && buf[pos] == ' ') pos++;
-    size_t end = buf.find("\r\n", pos);
-    return buf.substr(pos, end - pos);
-}
-
-std::string build_json_response(const std::string& req_buf) {
-    // parse request line
-    size_t line_end = req_buf.find("\r\n");
-    std::string request_line = req_buf.substr(0, line_end);
-
-    std::string method, path, version;
-    size_t s1 = request_line.find(' ');
-    size_t s2 = request_line.find(' ', s1 + 1);
-    if (s1 != std::string::npos && s2 != std::string::npos) {
-        method  = request_line.substr(0, s1);
-        path    = request_line.substr(s1 + 1, s2 - s1 - 1);
-        version = request_line.substr(s2 + 1);
-    }
-
-    // pull useful headers
-    std::string host         = parse_header(req_buf, "Host");
-    std::string user_agent   = parse_header(req_buf, "User-Agent");
-    std::string content_type = parse_header(req_buf, "Content-Type");
-    std::string accept       = parse_header(req_buf, "Accept");
-    std::string connection   = parse_header(req_buf, "Connection");
-
-    // extract body if any
-    std::string body;
-    size_t header_end = req_buf.find("\r\n\r\n");
-    if (header_end != std::string::npos)
-        body = req_buf.substr(header_end + 4);
-
-    // escape quotes in strings just in case
-    // build json body
-    std::string json =
-        "{\n"
-        "  \"method\": \""       + method       + "\",\n"
-        "  \"path\": \""         + path         + "\",\n"
-        "  \"httpVersion\": \""  + version      + "\",\n"
-        "  \"host\": \""         + host         + "\",\n"
-        "  \"userAgent\": \""    + user_agent   + "\",\n"
-        "  \"accept\": \""       + accept       + "\",\n"
-        "  \"contentType\": \""  + content_type + "\",\n"
-        "  \"connection\": \""   + connection   + "\",\n"
-        "  \"bodyLength\": "     + (body.empty() ? "0" : std::to_string((int)body.size())) + ",\n"
-        "  \"body\": \""         + (body.empty() ? "" : body) + "\"\n"
-        "}";
-
-    // build raw HTTP response
-    std::string content_length = std::to_string(json.size());
-    std::string response =
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: application/json\r\n"
-        "Content-Length: " + content_length + "\r\n"
-        "Connection: close\r\n"
-        "\r\n"
-        + json;
-
-    return response;
-}
-
-static std::string build_html_response(const std::string& req_buf) {
-    size_t line_end = req_buf.find("\r\n");
-    std::string request_line = req_buf.substr(0, line_end);
-
-    std::string method, path, version;
-    size_t s1 = request_line.find(' ');
-    size_t s2 = request_line.find(' ', s1 + 1);
-    if (s1 != std::string::npos && s2 != std::string::npos) {
-        method  = request_line.substr(0, s1);
-        path    = request_line.substr(s1 + 1, s2 - s1 - 1);
-        version = request_line.substr(s2 + 1);
-    }
-
-    std::string host       = parse_header(req_buf, "Host");
-    std::string user_agent = parse_header(req_buf, "User-Agent");
-    std::string accept     = parse_header(req_buf, "Accept");
-    std::string connection = parse_header(req_buf, "Connection");
-    std::string encoding   = parse_header(req_buf, "Accept-Encoding");
-    std::string language   = parse_header(req_buf, "Accept-Language");
-
-    std::string body;
-    size_t header_end = req_buf.find("\r\n\r\n");
-    if (header_end != std::string::npos)
-        body = req_buf.substr(header_end + 4);
-
-    // collect ALL headers into a table
-    std::string headers_rows;
-    std::string headers_section = req_buf.substr(line_end + 2);
-    size_t hend = headers_section.find("\r\n\r\n");
-    if (hend != std::string::npos) headers_section = headers_section.substr(0, hend);
-
-    size_t pos = 0;
-    while (pos < headers_section.size()) {
-        size_t nl = headers_section.find("\r\n", pos);
-        if (nl == std::string::npos) nl = headers_section.size();
-        std::string hline = headers_section.substr(pos, nl - pos);
-        size_t colon = hline.find(':');
-        if (colon != std::string::npos) {
-            std::string hkey = hline.substr(0, colon);
-            std::string hval = hline.substr(colon + 1);
-            while (!hval.empty() && hval[0] == ' ') hval.erase(0, 1);
-            headers_rows +=
-                "<tr><td>" + hkey + "</td><td>" + hval + "</td></tr>\n";
-        }
-        pos = nl + 2;
-    }
-
-    std::string body_section;
-    if (!body.empty()) {
-        body_section =
-            "<section>"
-            "<h2>body</h2>"
-            "<pre>" + body + "</pre>"
-            "</section>";
-    }
-
-    std::string html =
-        "<!DOCTYPE html>"
-        "<html lang='en'>"
-        "<head>"
-        "<meta charset='UTF-8'>"
-        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>webserv — " + method + " " + path + "</title>"
-        "<style>"
-        "  *{box-sizing:border-box;margin:0;padding:0}"
-        "  body{font-family:monospace;background:#0f0f0f;color:#d4d4d4;padding:2rem}"
-        "  h1{font-size:1.1rem;color:#4ec9b0;margin-bottom:2rem;letter-spacing:.05em}"
-        "  h2{font-size:.75rem;color:#858585;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.75rem}"
-        "  section{margin-bottom:2rem}"
-        "  .request-line{background:#1e1e1e;border-left:3px solid #4ec9b0;"
-        "    padding:.75rem 1rem;margin-bottom:2rem;font-size:1rem}"
-        "  .method{color:#569cd6;margin-right:.75rem}"
-        "  .path{color:#dcdcaa;margin-right:.75rem}"
-        "  .version{color:#858585}"
-        "  table{width:100%;border-collapse:collapse;font-size:.85rem}"
-        "  td{padding:.4rem .6rem;border-bottom:1px solid #1e1e1e;vertical-align:top}"
-        "  tr:last-child td{border-bottom:none}"
-        "  td:first-child{color:#9cdcfe;white-space:nowrap;width:220px}"
-        "  td:last-child{color:#ce9178;word-break:break-all}"
-        "  pre{background:#1e1e1e;padding:1rem;font-size:.85rem;color:#b5cea8;"
-        "    white-space:pre-wrap;word-break:break-word;border-left:3px solid #569cd6}"
-        "  .empty{color:#555;font-size:.85rem;font-style:italic}"
-        "</style>"
-        "</head>"
-        "<body>"
-        "<h1>webserv / request inspector</h1>"
-
-        "<div class='request-line'>"
-        "  <span class='method'>"  + method  + "</span>"
-        "  <span class='path'>"    + path    + "</span>"
-        "  <span class='version'>" + version + "</span>"
-        "</div>"
-
-        "<section>"
-        "<h2>headers</h2>"
-        "<table>" + headers_rows + "</table>"
-        "</section>"
-
-        + body_section +
-
-        (body.empty()
-            ? "<section><h2>body</h2><p class='empty'>no body</p></section>"
-            : "") +
-
-        "</body></html>";
-
-    std::string len = std::to_string(html.size());
-    return
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html; charset=UTF-8\r\n"
-        "Content-Length: " + len + "\r\n"
-        "Connection: close\r\n"
-        "\r\n"
-        + html;
-}
-
 void Server::_handle_read(size_t i) {
     int fd = _pollfds[i].fd;
+    Client& c = _clients[fd];
+
     char buf[4096];
     int n = recv(fd, buf, sizeof(buf), 0);
-
     if (n < 0 && errno == EAGAIN) return;
     if (n <= 0) { _close_client(i); return; }
 
-    _clients[fd].req_buf.append(buf, n);
+    c.last_active = time(NULL);
+    // adnan nadi dar chunks XD, w ga3 ma9alali
+    RequestParser::Status status = c.req_parser.feed(buf, n);
 
-    if (!request_complete(_clients[fd].req_buf)) return; // wait for more data
+    if (status == RequestParser::Incomplete) return;
 
-    // log the request line to stdout
-    size_t line_end = _clients[fd].req_buf.find("\r\n");
-    std::cout << "fd:" << fd << "  " << _clients[fd].req_buf.substr(0, line_end) << std::endl;
+    if (status == RequestParser::Error) {
+        c.res = _res_b.buildError(c.req_parser.getErrorCode(), _configs[c.server_block_index]);
+    } else {
+        c.req = c.req_parser.getRequest();
+        c.keep_alive = (c.req.headers.count("connection") &&
+                        c.req.headers.at("connection") == "keep-alive");
+        c.res = _res_b.dispatch(c.req, _configs[c.server_block_index], _cgi);
+    }
 
-    // use ur parser and builder instead of the hard coded html gen
-    _clients[fd].res_buf = build_html_response(_clients[fd].req_buf);
-    _clients[fd].req_buf.clear();
+    c.res.headers["Connection"] = c.keep_alive ? "keep-alive" : "close";
+    if (!c.res.headers.count("Content-Length")) {
+        std::ostringstream len;
+        len << c.res.body.size();
+        c.res.headers["Content-Length"] = len.str();
+    }
+
+    if (!c.res.body_path.empty()) {
+        c.res_file.open(c.res.body_path.c_str(), std::ios::binary);
+        if (!c.res_file.is_open()) {
+            c.res = _res_b.buildError(404, _configs[c.server_block_index]);
+            c.res_buf = c.res.build();
+        } else {
+            c.res_file.seekg(0, std::ios::end);
+            c.res_file_remaining = c.res_file.tellg();
+            c.res_file.seekg(0, std::ios::beg);
+            c.res_buf = c.res.build_headers();
+        }
+    } else {
+        c.res_buf = c.res.build();
+    }
     _pollfds[i].events = POLLOUT;
 }
 
+// TODO: change this bullshit to the new logic
 void Server::_handle_write(size_t i) {
     int fd = _pollfds[i].fd;
     Client& c = _clients[fd];
 
-    int n = send(fd, c.res_buf.c_str(), c.res_buf.size(), 0);
-    if (n < 0 && errno == EAGAIN) return;
-    if (n < 0) { _close_client(i); return; }
+    if (!c.res_buf.empty()) {
+        int n = send(fd, c.res_buf.c_str(), c.res_buf.size(), 0);
+        if (n < 0 && errno == EAGAIN) return;
+        if (n < 0) { _close_client(i); return; }
+        c.res_buf.erase(0, n);
+        c.last_active = time(NULL);
+        if (!c.res_buf.empty()) return;
+    }
 
-    c.res_buf.erase(0, n);
-    if (c.res_buf.empty())
-        _pollfds[i].events = POLLIN;    // done writing, back to reading
+    #define FILE_CHUNK 1000000
+
+    if (c.res_file.is_open()) {
+        if (c.res_file_remaining > 0) {
+            char chunk[FILE_CHUNK];
+            std::streamsize to_read = std::min((off_t)FILE_CHUNK, c.res_file_remaining);
+
+            c.res_file.read(chunk, to_read);
+            std::streamsize r = c.res_file.gcount();
+            if (r <= 0) { _close_file(c); _close_client(i); return; }
+
+            ssize_t sent = send(fd, chunk, r, 0);
+            if (sent < 0 && errno == EAGAIN) {
+                c.res_file.seekg(-r, std::ios::cur);
+                return;
+            }
+            if (sent < 0) { _close_file(c); _close_client(i); return; }
+
+            if (sent < r)
+                c.res_file.seekg(-(r - sent), std::ios::cur);
+
+            c.res_file_remaining -= sent;
+            c.last_active = time(NULL);
+            return;
+        }
+        _close_file(c);
+    }
+
+    if (!c.res_buf.empty()) return;
+
+    if (c.keep_alive) {
+        c.req_parser.reset();
+        c.req_parser.setMaxBodySize(_configs[c.server_block_index].clientMaxBodySize);
+        c.res_buf.clear();
+        _pollfds[i].events = POLLIN;
+    } else {
+        _close_client(i);
+    }
+}
+
+void Server::_check_timeouts() {
+    time_t now = time(NULL);
+    size_t i = 0;
+    while (i < _pollfds.size()) {
+        int fd = _pollfds[i].fd;
+        if (_is_listener(fd)) { i++; continue; }
+        if (now - _clients[fd].last_active > 30) {
+            std::cout << "timeout  fd:" << fd << std::endl;
+            _close_client(i);
+        } else {
+            i++;
+        }
+    }
 }
 
 void Server::run() {
@@ -324,6 +236,12 @@ void Server::run() {
             break;
         }
 
+        _check_timeouts();
+
+        if (n == 0) {
+            continue;
+        }
+
         size_t sz = _pollfds.size();
         for (size_t i = 0; i < sz; i++) {
             if (_pollfds[i].revents == 0) continue;
@@ -334,14 +252,18 @@ void Server::run() {
                 _handle_accept(fd);
                 continue;
             }
+
             if (_pollfds[i].revents & (POLLHUP | POLLERR)) {
                 _close_client(i--); sz--;
                 continue;
             }
+
             if (_pollfds[i].revents & POLLIN)
                 _handle_read(i);
-            if (i < _pollfds.size() && _pollfds[i].revents & POLLOUT)
-                _handle_write(i);
+
+            if (_clients.count(fd) && i < _pollfds.size() && _pollfds[i].fd == fd)
+                if (_pollfds[i].revents & POLLOUT)
+                    _handle_write(i);
         }
     }
 }

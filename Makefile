@@ -22,9 +22,7 @@ CGI_DIR =
 ROOT_SRC = $(wildcard *.cpp)
 SERVER_SRC = $(wildcard server/core/*.cpp) \
 		$(wildcard server/cgi/implementation/*.cpp) \
-		$(wildcard server/request-response/request/*.cpp) \
-		$(wildcard server/request-response/response/*.cpp) \
-		$(wildcard server/request-response/cookie-session/*.cpp)
+		$(wildcard server/request-response/*.cpp) \
 
 SRC = $(ROOT_SRC) $(SERVER_SRC)
 
