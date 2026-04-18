@@ -5,16 +5,16 @@ CXXFLAGS = -Wall -Wextra -Werror -std=c++98
 SRCS =  main.cpp \
         Config.cpp \
         Server.cpp \
-        ../RequestParser.cpp \
-        ../ResponseBuilder.cpp \
-        ../SessionManager.cpp \
-        ../../cgi/implementation/Cgi.cpp \
+        ../../RequestParser.cpp \
+        ../../ResponseBuilder.cpp \
+        ../../SessionManager.cpp \
+        ../../../cgi/implementation/Cgi.cpp \
 
 OBJS = $(SRCS:.cpp=.o)
 
-INCLUDES = -I. -Iinclude -Icore \
+INCLUDES = -I. -I../include \
            -I../include \
-           -I../../cgi/include
+           -I../../../cgi/include
 
 all: $(NAME)
 

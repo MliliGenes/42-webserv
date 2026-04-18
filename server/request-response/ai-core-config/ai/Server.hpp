@@ -3,10 +3,10 @@
 #define SERVER_HPP
 
 #include "Config.hpp"
-#include "../include/RequestParser.hpp"
-#include "../include/ResponseBuilder.hpp"
-#include "../include/SessionManager.hpp"
-#include "../../cgi/include/Cgi.hpp"
+#include "../../include/RequestParser.hpp"
+#include "../../include/ResponseBuilder.hpp"
+#include "../../include/SessionManager.hpp"
+#include "../../../cgi/include/Cgi.hpp"
 
 #include <vector>
 #include <map>
