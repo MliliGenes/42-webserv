@@ -8,6 +8,7 @@
 
 struct Response {
     int                                status_code;
+    std::string                        body_path;
     std::string                        status_message;
     std::map<std::string, std::string> headers;
     std::string                        body;
@@ -29,7 +30,7 @@ struct Response {
 
         return oss.str();
     }
-    std::string build_withoutBody() const {
+    std::string build_headers() const {
         std::ostringstream oss;
 
         oss << "HTTP/1.1 " << status_code << " " << status_message << "\r\n";

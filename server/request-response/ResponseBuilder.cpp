@@ -261,8 +261,11 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
         Response res;
         res.status_code = 200;
         res.status_message = statusMessage(200);
-        res.body = st.st_size > 50000000 ? "" : readFile(fs_path);
-        res.headers["Content-Length"] = sizeToString(res.body.size());
+        if (st.st_size > 16 * 1024)
+            res.body_path = fs_path;
+        else
+            res.body = readFile(fs_path);
+        res.headers["Content-Length"] = sizeToString(st.st_size);
         res.headers["Content-Type"] = getType(fs_path);
         return res;
 
@@ -321,7 +324,10 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
 				cgirequest	cgireq;
 				cgiresponse	cgires;
                 std::string error;
-                
+                if (!fileExists(fs_path))//>>>>>
+                {
+                    return buildError(404, config);
+                }
                 char resolved[4096];
                 if (::realpath(fs_path.c_str(), resolved))
                     fs_path = resolved;
@@ -377,7 +383,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
 
     if (filename.empty()) {
         std::ostringstream oss;
-        oss << "upload_" << std::time(NULL);
+        oss << req.method << "_" << req.path << std::time(NULL);
         filename = oss.str();
     }
 
@@ -417,25 +423,6 @@ Response ResponseBuilder::handleDelete(const Request&      req, const LocationCo
     return res;
 }
 
-bool ResponseBuilder::deleteFile(std::string path)
-{
-    return std::remove(path.c_str());
-}
-
-bool ResponseBuilder::writeFile(std::string path, std::string content)
-{
-    std::ofstream file(path.c_str(), std::ios::binary | std::ios::trunc);
-    if (!file.is_open()) return false;
-    file.write(content.c_str(), content.size());
-    return file.good();
-}
-
-bool ResponseBuilder::isDirectory(const std::string& path)
-{
-    struct stat st;
-    if (stat(path.c_str(), &st) != 0) return false;
-    return S_ISDIR(st.st_mode);
-}
 
 std::string ResponseBuilder::resolve_path(std::string root, std::string path, std::string route_path)
 {
@@ -489,6 +476,28 @@ Response ResponseBuilder::listsDirectory(const std::string& fs_path, const std::
     res.headers["Content-Length"] = sizeToString(body.size());
     return res;
 }
+
+
+bool ResponseBuilder::deleteFile(std::string path)
+{
+    return std::remove(path.c_str());
+}
+
+bool ResponseBuilder::writeFile(std::string path, std::string content)
+{
+    std::ofstream file(path.c_str(), std::ios::binary | std::ios::trunc);
+    if (!file.is_open()) return false;
+    file.write(content.c_str(), content.size());
+    return file.good();
+}
+
+bool ResponseBuilder::isDirectory(const std::string& path)
+{
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) return false;
+    return S_ISDIR(st.st_mode);
+}
+
 
 
 std::string ResponseBuilder::statusMessage(int code) {
