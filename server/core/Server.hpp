@@ -48,7 +48,7 @@ class Server {
     private:
         const std::vector<ServerConfig>& _configs;
         std::vector<pollfd>              _pollfds;
-        std::map<int, Client>            _clients;
+        std::map<int, Client*>            _clients;
         std::map<int, int>               _listeners;
 
         void _setup_listeners();
@@ -59,7 +59,7 @@ class Server {
         void _add_fd(int fd, short events);
         bool _is_listener(int fd);
         void _check_timeouts();
-        void _close_file(Client& c);
+        void _close_file(Client* c);
 
 		SessionManager	session;
 
@@ -68,6 +68,7 @@ class Server {
 
     public:
         Server(const Config& cfg);
+        ~Server();
         void run();
 
 };
