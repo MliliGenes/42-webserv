@@ -76,7 +76,11 @@ static void fillCgiRequest(const Request& req, const std::string& script_path,
 
 ResponseBuilder::ResponseBuilder(SessionManager& session) : sessions_(session){}
 
-Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& config, cgihandler& cgi){
+Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& config, cgihandler& cgi,
+                                  CgiRequest* cgi_req, bool* is_cgi){
+
+    if (is_cgi)
+        *is_cgi = false;
 
     const LocationConfig* route = matchRoute(req.path, config);
     if(!route)
@@ -95,13 +99,13 @@ Response ResponseBuilder::dispatch(const Request& req, const ServerConfig& confi
         return buildError(405, config);
     
     Response res;
-    if (req.method == "GET")  res = handleGet(req, *route, config, cgi);
-    else if (req.method == "POST")  res = handlePost(req, *route, config, cgi);
+    if (req.method == "GET")  res = handleGet(req, *route, config, cgi, cgi_req, is_cgi);
+    else if (req.method == "POST")  res = handlePost(req, *route, config, cgi, cgi_req, is_cgi);
     else if (req.method == "DELETE")  res = handleDelete(req, *route, config, cgi);
     else return res = buildError(405, config);
 
-    if (res.headers.find("Set-Cookie") == res.headers.end())
-        applySessionCookie(req, res);
+    if (!is_cgi || !*is_cgi)
+        applySessionCookieIfNeeded(req, res);
 
     return res;
 }
@@ -117,6 +121,11 @@ void ResponseBuilder::applySessionCookie(const Request& req, Response& res){
     }
     std::string sID = sessions_.create();
     res.headers["Set-Cookie"] = SessionManager::buildCookieHeader(sID);
+}
+
+void ResponseBuilder::applySessionCookieIfNeeded(const Request& req, Response& res){
+    if (res.headers.find("Set-Cookie") == res.headers.end())
+        applySessionCookie(req, res);
 }
 
 const LocationConfig* ResponseBuilder::matchRoute(const std::string& path, const ServerConfig& config) const{
@@ -166,8 +175,25 @@ Response ResponseBuilder::buildError(int code, const ServerConfig& config){
     return res;
 }
 
+Response ResponseBuilder::buildFromCgi(const CgiResponse& cgires){
+    Response res;
+
+    res.body = cgires.body;
+    res.status_code = cgires.status_code;
+    res.status_message = statusMessage(res.status_code);
+    for (std::vector<std::pair<std::string, std::string> >::const_iterator hdr = cgires.headers.begin();
+         hdr != cgires.headers.end(); ++hdr)
+        res.headers[hdr->first] = hdr->second;
+    res.headers["Content-Length"] = sizeToString(res.body.size());
+    if (res.headers.find("Content-Type") == res.headers.end())
+        res.headers["Content-Type"] = "text/html";
+
+    return res;
+}
+
 Response ResponseBuilder::handleGet(const Request&       req, const LocationConfig& route,
-                                    const ServerConfig&   config, cgihandler& cgi){
+                                    const ServerConfig&   config, cgihandler& cgi,
+                                    CgiRequest* cgi_req, bool* is_cgi){
     std::string root = route.root.empty() ? config.root : route.root;
     std::string fs_path = resolve_path(root, req.path);
 
@@ -196,6 +222,13 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
 
                 fillCgiRequest(req, fs_path, working_directory, it->second, config, cgireq);
 
+                if (cgi_req && is_cgi)
+                {
+                    *is_cgi = true;
+                    *cgi_req = cgireq;
+                    return Response();
+                }
+
                 bool st = cgi.execute(cgireq, cgires, error);
                 if (!st)
                 {
@@ -203,19 +236,7 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
                     return buildError(500, config);
                 }
 
-				Response res;	
-
-				res.body = cgires.body;
-                res.status_code = cgires.status_code;
-				res.status_message = statusMessage(res.status_code);
-                for (std::vector<std::pair<std::string, std::string> >::const_iterator hdr = cgires.headers.begin();
-                     hdr != cgires.headers.end(); ++hdr)
-                    res.headers[hdr->first] = hdr->second;
-                res.headers["Content-Length"] = sizeToString(res.body.size());
-                if (res.headers.find("Content-Type") == res.headers.end())
-                    res.headers["Content-Type"] = "text/html";
-
-                return res;
+                return buildFromCgi(cgires);
             }
         }
     }
@@ -312,7 +333,8 @@ std::string extractMultipartBody(const std::string& body,
 }
 
 Response ResponseBuilder::handlePost(const Request&      req, const LocationConfig& route,
-                                    const ServerConfig&  config, cgihandler& cgi)
+                                    const ServerConfig&  config, cgihandler& cgi,
+                                    CgiRequest* cgi_req, bool* is_cgi)
 {
     
     std::string root = route.root.empty() ? config.root : route.root;
@@ -340,6 +362,14 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
                     working_directory = fs_path.substr(0, slash);
 
                 fillCgiRequest(req, fs_path, working_directory, it->second, config, cgireq); // zidt hadi kn 3amar biha data f class d cgi
+
+                if (cgi_req && is_cgi)
+                {
+                    *is_cgi = true;
+                    *cgi_req = cgireq;
+                    return Response();
+                }
+
                 bool st = cgi.execute(cgireq, cgires, error);
                 if (!st)
                 {
@@ -347,18 +377,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
                     return buildError(500, config);
                 }
 
-				Response res;
-				res.body = cgires.body;
-				res.status_code = cgires.status_code;
-				res.status_message = statusMessage(res.status_code);
-                for (std::vector<std::pair<std::string, std::string> >::const_iterator hdr = cgires.headers.begin();
-                    hdr != cgires.headers.end(); ++hdr)
-                    res.headers[hdr->first] = hdr->second;
-                res.headers["Content-Length"] = sizeToString(res.body.size());
-                if (res.headers.find("Content-Type") == res.headers.end())
-                    res.headers["Content-Type"] = "text/html";
-
-                return res;
+                return buildFromCgi(cgires);
             }       
         }
     }

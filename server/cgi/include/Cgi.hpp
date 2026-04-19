@@ -12,7 +12,6 @@
 #include <cerrno>
 #include <exception>
 #include <fcntl.h>
-#include <poll.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
@@ -43,6 +42,14 @@ struct CgiResponse
     CgiResponse();
 };
 
+struct CgiProcess
+{
+    pid_t pid;
+    int   in_fd;
+    int   out_fd;
+    CgiProcess() : pid(-1), in_fd(-1), out_fd(-1) {}
+};
+
 class CgiHandler 
 {
 public:
@@ -50,11 +57,12 @@ public:
     // ~CgiHandler(); nzid 5 const later
 
     bool    execute(const CgiRequest& req, CgiResponse& res, std::string& err, int timeout_sec = 5) const;
+    bool    spawn(const CgiRequest& req, CgiProcess& proc, std::string& err) const;
+    bool    parseOutput(const std::string& raw, CgiResponse& res, std::string& err) const;
 
 private:
     std::vector<std::string> buildEnv(const CgiRequest& req) const;
     bool    runProcess(const CgiRequest& req, const std::vector<std::string>& env, std::string& raw, std::string& err, int timeout_sec) const;
-    bool    parseOutput(const std::string& raw, CgiResponse& res, std::string& err) const;
 };
 
 typedef CgiRequest  cgirequest;

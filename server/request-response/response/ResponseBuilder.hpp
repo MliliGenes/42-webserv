@@ -19,8 +19,11 @@ class ResponseBuilder {
         ResponseBuilder(SessionManager& sessions);
 
         
-        Response dispatch(const Request& req, const ServerConfig& config, cgihandler& cgi);
+        Response dispatch(const Request& req, const ServerConfig& config, cgihandler& cgi,
+                  CgiRequest* cgi_req, bool* is_cgi);
         Response buildError(int code, const ServerConfig& config);
+        Response buildFromCgi(const CgiResponse& cgires);
+        void applySessionCookieIfNeeded(const Request& req, Response& res);
 
     private:
         const LocationConfig* matchRoute(const std::string&  path,
@@ -41,12 +44,14 @@ class ResponseBuilder {
 
         
         Response    handleGet(const Request&      req,
-                       const LocationConfig& route,
-                       const ServerConfig&  config, cgihandler& cgi);
+                   const LocationConfig& route,
+                   const ServerConfig&  config, cgihandler& cgi,
+                   CgiRequest* cgi_req, bool* is_cgi);
 
         Response    handlePost(const Request&      req,
-                        const LocationConfig& route,
-                        const ServerConfig&  config, cgihandler& cgi);
+                const LocationConfig& route,
+                const ServerConfig&  config, cgihandler& cgi,
+                CgiRequest* cgi_req, bool* is_cgi);
 
         Response    handleDelete(const Request&      req,
                           const LocationConfig& route,

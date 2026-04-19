@@ -5,13 +5,6 @@ static void safe_close(int& fd)
     if (fd >= 0) { ::close(fd); fd = -1; }
 }
 
-static bool set_nonblock(int fd)
-{
-    int flags = ::fcntl(fd, F_GETFL, 0);
-    if (flags < 0) return false;
-    return ::fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0;
-}
-
 static std::string itoa_str(size_t n)
 {
     std::ostringstream ss;
@@ -95,14 +88,10 @@ std::vector<std::string> CgiHandler::buildEnv(const CgiRequest& req) const
     return env;
 }
 
-bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string>& env, std::string& raw, std::string& err, int timeout_sec) const
+bool CgiHandler::spawn(const CgiRequest& req, CgiProcess& proc, std::string& err) const
 {
-    size_t      sent  = 0;
-    std::time_t start = std::time(NULL);
-    char        buf[4096];
-    bool        child_done = false;
-    int         child_status = 0;
-    std::vector<char*> envp;
+    std::vector<std::string> env = buildEnv(req);
+    std::vector<char*>       envp;
     int in_p[2]  = {-1, -1};
     int out_p[2] = {-1, -1};
 
@@ -111,7 +100,7 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
     std::memset(&sa, 0, sizeof(sa));
     sa.sa_handler = SIG_IGN;
     sigemptyset(&sa.sa_mask);
-    if (::sigaction(SIGPIPE, &sa, &old_sa) != 0) // handling the fail of the sigaction
+    if (::sigaction(SIGPIPE, &sa, &old_sa) != 0)
     {
         err = std::string("sigaction: ") + std::strerror(errno);
         return false;
@@ -123,7 +112,7 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
         ::sigaction(SIGPIPE, &old_sa, NULL);
         return false;
     }
-    // build envp from storage
+
     envp.reserve(env.size() + 1);
     for (size_t i = 0; i < env.size(); ++i)
         envp.push_back(const_cast<char*>(env[i].c_str()));
@@ -132,22 +121,17 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
     pid_t pid = ::fork();
     if (pid < 0) {
         err = std::string("fork: ") + std::strerror(errno);
-        safe_close(in_p[0]);  
-        safe_close(out_p[0]);
-        safe_close(out_p[1]);
-        safe_close(in_p[1]);
+        safe_close(in_p[0]);  safe_close(in_p[1]);
+        safe_close(out_p[0]); safe_close(out_p[1]);
         ::sigaction(SIGPIPE, &old_sa, NULL);
         return false;
     }
-    //CHILD 
     if (pid == 0)
     {
-        if (::dup2(in_p[0], STDIN_FILENO) < 0 || ::dup2(out_p[1], STDOUT_FILENO) < 0) 
+        if (::dup2(in_p[0], STDIN_FILENO) < 0 || ::dup2(out_p[1], STDOUT_FILENO) < 0)
             ::_exit(126);
-        safe_close(in_p[0]);  
-        safe_close(out_p[0]);
-        safe_close(out_p[1]);
-        safe_close(in_p[1]);
+        safe_close(in_p[0]);  safe_close(out_p[0]);
+        safe_close(out_p[1]); safe_close(in_p[1]);
 
         if (!req.working_directory.empty())
         {
@@ -175,109 +159,53 @@ bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string
 
     safe_close(in_p[0]);
     safe_close(out_p[1]);
-    int wfd = in_p[1];
-    int rfd = out_p[0];
 
-    if (!set_nonblock(wfd) || !set_nonblock(rfd)) {
-        err = "fcntl O_NONBLOCK failed";
-        ::kill(pid, SIGKILL); ::waitpid(pid, NULL, 0);
-        safe_close(wfd); safe_close(rfd);
-        ::sigaction(SIGPIPE, &old_sa, NULL);
+    proc.pid   = pid;
+    proc.in_fd = in_p[1];
+    proc.out_fd = out_p[0];
+
+    ::sigaction(SIGPIPE, &old_sa, NULL);
+    return true;
+}
+
+bool CgiHandler::runProcess(const CgiRequest& req, const std::vector<std::string>& env, std::string& raw, std::string& err, int timeout_sec) const
+{
+    (void)env;
+    (void)timeout_sec;
+    CgiProcess proc;
+    if (!spawn(req, proc, err))
+        return false;
+
+    size_t sent = 0;
+    char   buf[4096];
+
+    while (sent < req.body.size())
+    {
+        size_t  chunk = req.body.size() - sent;
+        if (chunk > 4096) chunk = 4096;
+        ssize_t w = ::write(proc.in_fd, req.body.c_str() + sent, chunk);
+        if (w <= 0)
+            break;
+        sent += (size_t)w;
+    }
+    safe_close(proc.in_fd);
+
+    ssize_t r;
+    while ((r = ::read(proc.out_fd, buf, sizeof(buf))) > 0)
+        raw.append(buf, (size_t)r);
+    safe_close(proc.out_fd);
+
+    int child_status = 0;
+    ::waitpid(proc.pid, &child_status, 0);
+    if (WIFSIGNALED(child_status))
+    {
+        err = "CGI killed by signal";
         return false;
     }
-    while (rfd >= 0)
-    {
-        struct pollfd pfd[2];
-        int           n  = 0;
-        int           ri = 0;
-
-        // timeout check
-        if (timeout_sec > 0 &&
-            (int)(std::time(NULL) - start) > timeout_sec)
-        {
-            ::kill(pid, SIGKILL); ::waitpid(pid, NULL, 0);
-            safe_close(wfd); safe_close(rfd);
-            err = "CGI timeout";
-            ::sigaction(SIGPIPE, &old_sa, NULL);
-            return false;
-        }
-        if (wfd >= 0 && sent >= req.body.size())
-            safe_close(wfd);
-
-        if (wfd >= 0)
-        {
-            pfd[n].fd      = wfd;
-            pfd[n].events  = POLLOUT;
-            pfd[n].revents = 0;
-            ++n;
-        }
-        ri = n;
-        pfd[n].fd      = rfd;
-        pfd[n].events  = POLLIN | POLLHUP;
-        pfd[n].revents = 0;
-        ++n;
-        if (::poll(pfd, (nfds_t)n, 100) < 0 && errno != EINTR)
-		{
-            ::kill(pid, SIGKILL); ::waitpid(pid, NULL, 0);
-            safe_close(wfd); safe_close(rfd);
-            err = std::string("poll: ") + std::strerror(errno);
-            ::sigaction(SIGPIPE, &old_sa, NULL);
-            return false;
-        }
-        // write body to child stdin
-        if (wfd >= 0 && (pfd[0].revents & POLLOUT))
-		{
-            size_t  chunk = req.body.size() - sent;
-            if (chunk > 4096) chunk = 4096;
-            ssize_t w = ::write(wfd, req.body.c_str() + sent, chunk);
-            if (w > 0)
-                sent += (size_t)w;
-            else if (w < 0 && errno != EINTR
-                  && errno != EAGAIN && errno != EWOULDBLOCK)
-                safe_close(wfd);
-        }
-        if (wfd >= 0 && (pfd[0].revents & (POLLERR | POLLHUP | POLLNVAL)))
-            safe_close(wfd);
-        // read child stdout
-        if (pfd[ri].revents & (POLLIN | POLLHUP))
-		{
-            ssize_t r;
-            while ((r = ::read(rfd, buf, sizeof(buf))) > 0)
-                raw.append(buf, (size_t)r);
-            if (r == 0)
-                safe_close(rfd);
-        }
-        if (pfd[ri].revents & (POLLERR | POLLNVAL))
-		{
-            ::kill(pid, SIGKILL); ::waitpid(pid, NULL, 0);
-            safe_close(wfd); safe_close(rfd);
-            err = "CGI stdout error";
-            ::sigaction(SIGPIPE, &old_sa, NULL);
-            return false;
-        }
-        if (!child_done)
-		{
-            pid_t r = ::waitpid(pid, &child_status, WNOHANG);
-            if (r == pid)
-                child_done = true;
-        }
-        if (child_done && rfd < 0)
-            break;
-    }
-    safe_close(wfd);
-    safe_close(rfd);
-    if (!child_done)
-        ::waitpid(pid, &child_status, 0);
-    ::sigaction(SIGPIPE, &old_sa, NULL);
-    if (WIFSIGNALED(child_status)) 
-	{ 
-		err = "CGI killed by signal";
-		return false;
-	}
     if (WIFEXITED(child_status) && WEXITSTATUS(child_status) != 0 && raw.empty())
-	{
+    {
         err = "CGI exited non-zero, no output";
-		return false;
+        return false;
     }
     return true;
 }
