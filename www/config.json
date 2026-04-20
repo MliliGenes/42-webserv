@@ -9,12 +9,12 @@
         "index": ["index.html"],
   
         "error_pages": {
-          "403": "./www/error/403.html",
-          "404": "./www/error/404.html",
-          "500": "./www/error/500.html",
-          "502": "./www/error/502.html",
-          "503": "./www/error/503.html",
-          "504": "./www/error/504.html"
+          "403": "./www/errors/403.html",
+          "404": "./www/errors/404.html",
+          "500": "./www/errors/500.html",
+          "502": "./www/errors/502.html",
+          "503": "./www/errors/503.html",
+          "504": "./www/errors/504.html"
         },
   
         "locations": [
