@@ -195,7 +195,7 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
                                     const ServerConfig&   config, cgihandler& cgi,
                                     CgiRequest* cgi_req, bool* is_cgi){
     std::string root = route.root.empty() ? config.root : route.root;
-    std::string fs_path = resolve_path(root, req.path);
+    std::string fs_path = resolve_path(root, req.path, route.path);
 
 
     if(!route.cgi.empty())
@@ -211,10 +211,13 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
 				cgirequest	cgireq;
 				cgiresponse	cgires;
                 std::string error;
-                char resolved[4096];
-                if (::realpath(fs_path.c_str(), resolved))
-                    fs_path = resolved;
-
+                // char resolved[4096];
+                // if (::realpath(fs_path.c_str(), resolved))
+                //     fs_path = resolved;
+                if (!fileExists(fs_path))//>>>>>
+                {
+                    return buildError(404, config);
+                }
                 std::string working_directory = root;
                 std::size_t slash = fs_path.rfind('/');
                 if (slash != std::string::npos)
@@ -290,44 +293,35 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
 }
 
 // BIBA
-std::string extractMultipartBody(const std::string& body,
-                                        const std::string& content_type)
+static std::string extractMultipartFile(const std::string& body, const std::string& content_type,
+                                         std::string& out_filename)
 {
-    // pull boundary from:  multipart/form-data; boundary=----WebKitFormBoundary...
     std::size_t b = content_type.find("boundary=");
-    if (b == std::string::npos) return body;
+    if (b == std::string::npos) return "";
     std::string boundary = "--" + content_type.substr(b + 9);
+    
+    std::size_t start = body.find(boundary);
 
-    // strip optional quotes around boundary value
-    if (!boundary.empty() && boundary[2] == '"') {
-        boundary = "--" + content_type.substr(b + 10);
-        std::size_t q = boundary.find('"');
-        if (q != std::string::npos) boundary = boundary.substr(0, q);
+    if (start == std::string::npos) return "";
+    start += boundary.size() + 2;
+
+
+    std::size_t header_end = body.find("\r\n\r\n", start);
+
+    if (header_end == std::string::npos) return "";
+
+    std::string part_headers = body.substr(start, header_end - start);
+    std::size_t fn = part_headers.find("filename=\"");
+    if (fn != std::string::npos) {
+        fn += 10;
+        std::size_t fn_end = part_headers.find("\"", fn);
+        if (fn_end != std::string::npos)
+            out_filename = part_headers.substr(fn, fn_end - fn);
     }
 
-    // find the first part's header block end (\r\n\r\n after the boundary line)
-    std::size_t part_start = body.find(boundary);
-    if (part_start == std::string::npos) return body;
-    part_start += boundary.size();               // skip past boundary line
-    if (part_start < body.size() && body[part_start] == '\r') part_start++;
-    if (part_start < body.size() && body[part_start] == '\n') part_start++;
-
-    // skip the part headers (Content-Disposition, Content-Type, etc.)
-    std::size_t header_end = body.find("\r\n\r\n", part_start);
-    if (header_end == std::string::npos) return body;
-    std::size_t data_start = header_end + 4;     // first byte of actual file data
-
-    // find the closing boundary
-    std::string end_boundary = "\r\n" + boundary + "--";
-    std::size_t data_end = body.find(end_boundary, data_start);
-    if (data_end == std::string::npos) {
-        // fallback: try without the leading \r\n
-        data_end = body.find(boundary + "--", data_start);
-        if (data_end == std::string::npos)
-            data_end = body.size();
-        else if (data_end >= 2 && body[data_end-2] == '\r' && body[data_end-1] == '\n')
-            data_end -= 2; // trim the \r\n before the boundary
-    }
+    std::size_t data_start = header_end + 4;
+    std::size_t data_end = body.find("\r\n" + boundary, data_start);
+    if (data_end == std::string::npos) return "";
 
     return body.substr(data_start, data_end - data_start);
 }
@@ -338,7 +332,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
 {
     
     std::string root = route.root.empty() ? config.root : route.root;
-    std::string fs_path = resolve_path(root, req.path);
+    std::string fs_path = resolve_path(root, req.path, route.path);
 
     if (!route.cgi.empty())
     {
@@ -352,10 +346,13 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
 				cgiresponse	cgires;
                 std::string error;
                 
-                char resolved[4096];
-                if (::realpath(fs_path.c_str(), resolved))
-                    fs_path = resolved;
-
+                // char resolved[4096];
+                // if (::realpath(fs_path.c_str(), resolved))
+                //     fs_path = resolved;
+                if (!fileExists(fs_path))//>>>>>
+                {
+                    return buildError(404, config);
+                }
                 std::string working_directory = root;
                 std::size_t slash = fs_path.rfind('/');
                 if (slash != std::string::npos)
@@ -386,32 +383,33 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
         return buildError(403, config);
     if (route.uploadStore.empty())
         return buildError(500, config);
-    std::string filename = "upload"; // default name
-    std::map<std::string, std::string>::const_iterator it;
-    it = req.headers.find("content-disposition");
-    if (it != req.headers.end()){
-        std::size_t fn = it->second.find("filename=\"");
-        if (fn != std::string::npos)
-            fn += 10;
-        std::size_t fn_end = it->second.find("\"", fn);
-        if (fn_end != std::string::npos)
-            filename = it->second.substr(fn, fn_end - fn);
-    }
-    if (filename == "upload") {
-        std::ostringstream oss;
-        oss << "upload_" << std::time(NULL);
-        filename = oss.str();
-    }
-    
-    std::string path = resolve_path(route.uploadStore, filename);
+    std::string filename = ""; // default name
+    std::string file_data;
 
     std::string content_type;
-    std::map<std::string, std::string>::const_iterator ct = req.headers.find("content-type");
+    std::map<std::string, std::string>::const_iterator ct;
+    ct = req.headers.find("content-type");
     if (ct != req.headers.end())
         content_type = ct->second;
+    if (content_type.find("multipart/form-data") != std::string::npos)
+    {
+        file_data = extractMultipartFile(req.body, content_type, filename);
+        if (file_data.empty() && filename.empty())
+            return buildError(400, config);
+    }
+    else
+        file_data = req.body;
 
-    std::string file_data = extractMultipartBody(req.body, content_type);
+    if (filename.empty()) {
+        std::ostringstream oss;
+        oss << req.method << "_" << req.path << std::time(NULL);
+        filename = oss.str();
+    }
 
+    if (filename.find("..") != std::string::npos || filename.find('/') != std::string::npos)
+        return buildError(400, config);
+
+    std::string path = resolve_path(route.uploadStore, filename, route.path);
     if (!writeFile(path, file_data))
         return buildError(500, config);
     Response res;
@@ -431,7 +429,7 @@ Response ResponseBuilder::handleDelete(const Request&      req, const LocationCo
 {
     (void)cgi;
     std::string root = route.root.empty() ? config.root : route.root;
-    std::string fs_path = resolve_path(root, req.path);
+    std::string fs_path = resolve_path(root, req.path, route.path);
 
     if (!fileExists(fs_path))
         return buildError(404, config);
@@ -444,37 +442,22 @@ Response ResponseBuilder::handleDelete(const Request&      req, const LocationCo
     return res;
 }
 
-bool ResponseBuilder::deleteFile(std::string path)
-{
-    return std::remove(path.c_str());
-}
 
-bool ResponseBuilder::writeFile(std::string path, std::string content)
+std::string ResponseBuilder::resolve_path(std::string root, std::string path, std::string route_path)
 {
-    std::ofstream file(path.c_str(), std::ios::binary | std::ios::trunc);
-    if (!file.is_open()) return false;
-    file.write(content.c_str(), content.size());
-    return file.good();
-}
+    if (root.empty())
+        return path;
 
-bool ResponseBuilder::isDirectory(const std::string& path)
-{
-    struct stat st;
-    if (stat(path.c_str(), &st) != 0) return false;
-    return S_ISDIR(st.st_mode);
+    if (path.empty() || path == "/")
+    {
+        if (root[root.size() - 1] != '/')
+            return root + "/";
+    }
+    path = path.substr(route_path.size());
+    if (root[root.size() - 1] != '/' && path[0] != '/')
+        root += "/";
+    return root + path;
 }
-
-std::string ResponseBuilder::resolve_path(std::string root, std::string path)
-{
-    std::string result = root;
-    if (!result.empty() && result[result.size() - 1] == '/' && path[0] == '/')
-        result.erase(result.size() - 1);
-    else if (path[0] != '/' && result[result.size() - 1] != '/')
-        result += "/";
-    result += path;
-    return result;
-}
-
 
 Response ResponseBuilder::listsDirectory(const std::string& fs_path, const std::string& req_path)
 {
@@ -513,23 +496,26 @@ Response ResponseBuilder::listsDirectory(const std::string& fs_path, const std::
 }
 
 
-std::string ResponseBuilder::statusMessage(int code) {
-    switch (code) {
-        case 200: return "OK";
-        case 201: return "Created";
-        case 204: return "No Content";
-        case 301: return "Moved Permanently";
-        case 302: return "Found";
-        case 400: return "Bad Request";
-        case 403: return "Forbidden";
-        case 404: return "Not Found";
-        case 405: return "Method Not Allowed";
-        case 413: return "Content Too Large";
-        case 500: return "Internal Server Error";
-        case 505: return "HTTP Version Not Supported";
-        default:  return "Unknown";
-    }
+bool ResponseBuilder::deleteFile(std::string path)
+{
+    return std::remove(path.c_str());
 }
+
+bool ResponseBuilder::writeFile(std::string path, std::string content)
+{
+    std::ofstream file(path.c_str(), std::ios::binary | std::ios::trunc);
+    if (!file.is_open()) return false;
+    file.write(content.c_str(), content.size());
+    return file.good();
+}
+
+bool ResponseBuilder::isDirectory(const std::string& path)
+{
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) return false;
+    return S_ISDIR(st.st_mode);
+}
+
 
 bool ResponseBuilder::fileExists(const std::string& path) const {
     struct stat st;
@@ -550,6 +536,27 @@ std::string ResponseBuilder::sizeToString(std::size_t n) {
     oss << n;
     return oss.str();
 }
+
+
+std::string ResponseBuilder::statusMessage(int code) {
+    switch (code) {
+        case 200: return "OK";
+        case 201: return "Created";
+        case 204: return "No Content";
+        case 301: return "Moved Permanently";
+        case 302: return "Found";
+        case 400: return "Bad Request";
+        case 403: return "Forbidden";
+        case 404: return "Not Found";
+        case 405: return "Method Not Allowed";
+        case 413: return "Content Too Large";
+        case 500: return "Internal Server Error";
+        case 505: return "HTTP Version Not Supported";
+        default:  return "Unknown";
+    }
+}
+
+
 
 std::string ResponseBuilder::getType(const std::string& path) const {
     std::size_t dot = path.rfind('.');

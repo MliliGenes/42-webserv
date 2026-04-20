@@ -34,7 +34,7 @@ class ResponseBuilder {
         std::string getType(const std::string& path) const;
         std::string readFile(const std::string& path) const;
 
-        std::string resolve_path(std::string root, std::string path);
+        std::string resolve_path(std::string root, std::string path, std::string rout_path);
         bool        deleteFile(std::string path);
         bool        isDirectory(const std::string& path);
         bool        fileExists(const std::string& path) const;

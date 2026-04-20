@@ -14,10 +14,10 @@ class RequestParser {
 
     Status feed(const char* data, std::size_t len);
 
-    const Request& getRequest()     const;
-    int getErrorCode() const;
-    void reset();
-    void setMaxBodySize(std::size_t size);
+    const Request&  getRequest()     const;
+    int             getErrorCode() const;
+    void            reset();
+    void            setMaxBodySize(std::size_t size);
     
     static std::string ft_trim(const std::string& s);
     static std::string ft_toLower(const std::string& s);
