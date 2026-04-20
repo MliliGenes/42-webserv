@@ -1,93 +1,68 @@
 [
-  {
-    "server": {
-      "host": "127.0.0.1",
-      "port": 8080,
-      "server_name": "example.com/ www.example.com",
-      "client_max_body_size": "10M",
-      "error_pages": {
-        "404": "/errors/404.html",
-        "500": "/errors/500.html",
-        "403": "/errors/403.html"
-      },
-      "root": "/var/www/example",
-      "locations": [
-        {
-          "path": "/",
-          "methods": ["GET", "POST"],
-          "root": "/var/www/example",
-          "index": ["index.html"],
-          "autoindex": true
+    {
+      "server": {
+        "host": "127.0.0.1",
+        "port": 3030,
+        "server_name": ["webserv", "localhost"],
+        "client_max_body_size": "1G",
+        "root": "./www",
+        "index": ["index.html"],
+  
+        "error_pages": {
+          "403": "./www/error/403.html",
+          "404": "./www/error/404.html",
+          "500": "./www/error/500.html",
+          "502": "./www/error/502.html",
+          "503": "./www/error/503.html",
+          "504": "./www/error/504.html"
         },
-        {
-          "path": "/uploads",
-          "methods": ["GET", "POST", "DELETE"],
-          "root": "/var/www/example/uploads",
-          "autoindex": true,
-          "upload_enable": true,
-          "upload_store": "/var/www/example/uploads"
-        },
-        {
-          "path": "/api",
-          "methods": ["GET", "POST", "PUT", "DELETE"],
-          "root": "/var/www/example/api",
-          "autoindex": false
-        },
-        {
-          "path": "/redirect",
-          "redirect": {
-            "code": 301,
-            "url": "https://www.google.com"
+  
+        "locations": [
+          {
+            "path": "/",
+            "methods": ["GET"],
+            "root": "./www",
+            "index": ["index.html"],
+            "autoindex": false
+          },
+  
+          {
+            "path": "/submit",
+            "methods": ["POST"],
+            "root": "./www",
+            "upload_enable": true,
+            "upload_store": "./www/submit"
+          },
+  
+          {
+            "path": "/upload",
+            "methods": ["GET", "POST", "DELETE"],
+            "root": "./www",
+            "upload_enable": true,
+            "upload_store": "./www/upload"
+          },
+  
+          {
+            "path": "/cgi-bin",
+            "methods": ["GET", "POST"],
+            "root": "./www",
+            "cgi": {
+              ".py": "/usr/bin/python3",
+              ".php": "/usr/bin/php-cgi",
+              ".js": "/usr/bin/node",
+              ".sh": "/bin/bash"
+            }
+          },
+  
+          {
+            "path": "/redirect",
+            "methods" : ["GET"],
+            "redirect": {
+              "code": 301,
+              "url": "https://www.youtube.com/watch?v=1HfeGXgxoY8"
+            }
           }
-        },
-        {
-          "path": "/cgi-bin",
-          "methods": ["GET", "POST"],
-          "root": "/var/www/example/cgi-bin",
-          "cgi": {
-            ".php": "/usr/bin/php-cgi",
-            ".py": "/usr/bin/python3",
-            ".sh": "/usr/bin/perl",
-            ".js": "/usr/bin/node"
-          }
-        },
-        {
-          "path": "/static",
-          "methods": ["GET"],
-          "root": "/var/www/example/static",
-          "autoindex": true,
-          "index": ["index.html"]
-        }
-      ]
+        ]
+      }
     }
-  },
-  {
-    "server": {
-      "host": "0.0.0.0",
-      "port": 3000,
-      "server_name": "localhost",
-      "client_max_body_size": "5M",
-      "error_pages": {
-        "404": "/custom_errors/not_found.html",
-        "500": "/custom_errors/server_error.html"
-      },
-      "root": "/var/www/local",
-      "index": ["index.html"],
-      "locations": [
-        {
-          "path": "/",
-          "methods": ["GET"],
-          "autoindex": false
-        },
-        {
-          "path": "/files",
-          "methods": ["GET", "POST"],
-          "root": "/var/www/local/files",
-          "autoindex": true,
-          "upload_enable": true,
-          "upload_store": "/var/www/local/files"
-        }
-      ]
-    }
-  }
-]
+  ]
