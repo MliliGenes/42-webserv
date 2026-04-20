@@ -41,6 +41,15 @@
             "upload_enable": true,
             "upload_store": "./www/upload"
           },
+          {
+            "path": "/image",
+            "methods": ["GET", "POST", "DELETE"],
+            "root": "./www/images",
+			"index": ["image2.jpg"],
+            "upload_enable": true,
+            "upload_store": "./www/images",
+			"autoindex": true
+          },
   
           {
             "path": "/cgi-bin",
