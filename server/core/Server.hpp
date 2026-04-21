@@ -68,7 +68,7 @@ class Server {
     private:
         const std::vector<ServerConfig>& _configs;
         std::vector<pollfd>              _pollfds;
-        std::map<int, Client>            _clients;
+        std::map<int, Client*>            _clients;
         std::map<int, int>               _listeners;
         struct CgiFdInfo {
             int  client_fd;
@@ -88,12 +88,12 @@ class Server {
         bool _is_cgi_fd(int fd) const;
         void _check_timeouts();
         void _check_cgi_jobs();
-        void _close_file(Client& c);
-        void _cleanup_cgi(Client& c);
+        void _close_file(Client* c);
+        void _cleanup_cgi(Client* c);
         void _invalidate_pollfd_by_fd(int fd);
         void _compact_pollfds();
         void _set_client_events(int fd, short events);
-        void _finalize_cgi(Client& c, const ServerConfig& cfg);
+        void _finalize_cgi(Client* c, const ServerConfig& cfg);
 
 		SessionManager	session;
 
@@ -102,6 +102,7 @@ class Server {
 
     public:
         Server(const Config& cfg);
+        ~Server();
         void run();
 
 };

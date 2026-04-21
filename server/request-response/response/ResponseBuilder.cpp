@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <cstdio>
-#include <cctype>
 #include "ResponseBuilder.hpp"
 #include "Response.hpp"
 
@@ -346,9 +345,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
 				cgiresponse	cgires;
                 std::string error;
                 
-                // char resolved[4096];
-                // if (::realpath(fs_path.c_str(), resolved))
-                //     fs_path = resolved;
+
                 if (!fileExists(fs_path))//>>>>>
                 {
                     return buildError(404, config);
@@ -399,17 +396,16 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
     }
     else
         file_data = req.body;
-
-    if (filename.empty()) {
+	
+	std::string path;
+	if (filename.empty()) {
         std::ostringstream oss;
-        oss << req.method << "_" << req.path << std::time(NULL);
+        oss << req.method << "_" << (req.path[0] == '/' ? req.path.substr(1) : req.path) << std::time(NULL);
         filename = oss.str();
+    	path = resolve_path(route.uploadStore, filename, "");
     }
-
-    if (filename.find("..") != std::string::npos || filename.find('/') != std::string::npos)
-        return buildError(400, config);
-
-    std::string path = resolve_path(route.uploadStore, filename, route.path);
+	else
+		path = resolve_path(route.uploadStore, filename, route.path);
     if (!writeFile(path, file_data))
         return buildError(500, config);
     Response res;
@@ -453,7 +449,9 @@ std::string ResponseBuilder::resolve_path(std::string root, std::string path, st
         if (root[root.size() - 1] != '/')
             return root + "/";
     }
-    path = path.substr(route_path.size());
+	std::cout << root << " " << path << " " << route_path << std::endl;
+	if (!route_path.empty())
+    	path = path.substr(route_path.size());
     if (root[root.size() - 1] != '/' && path[0] != '/')
         root += "/";
     return root + path;

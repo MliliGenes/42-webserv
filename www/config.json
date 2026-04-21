@@ -28,8 +28,8 @@
   
           {
             "path": "/submit",
-            "methods": ["POST"],
-            "root": "./www",
+            "methods": ["POST", "DELETE"],
+            "root": "./www/submit",
             "upload_enable": true,
             "upload_store": "./www/submit"
           },
@@ -37,7 +37,7 @@
           {
             "path": "/upload",
             "methods": ["GET", "POST", "DELETE"],
-            "root": "./www",
+            "root": "./www/upload",
             "upload_enable": true,
             "upload_store": "./www/upload"
           },

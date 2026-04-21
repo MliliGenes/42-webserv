@@ -5,10 +5,8 @@
 #include "server/core/Config.hpp"
 #include "server/core/Server.hpp"
 
-void ll() {system("leaks webserv");}
 
 int main (int ac, char ** av) {
-    atexit(ll);
     TrpJsonParser parser;
 
     TrpJsonLexer* lexer = NULL;
