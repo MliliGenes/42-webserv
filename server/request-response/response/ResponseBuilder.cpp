@@ -210,20 +210,19 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
 				cgirequest	cgireq;
 				cgiresponse	cgires;
                 std::string error;
-                // char resolved[4096];
-                // if (::realpath(fs_path.c_str(), resolved))
-                //     fs_path = resolved;
                 if (!fileExists(fs_path))//>>>>>
                 {
                     return buildError(404, config);
                 }
                 std::string working_directory = root;
+                std::string script_name = fs_path;
                 std::size_t slash = fs_path.rfind('/');
                 if (slash != std::string::npos)
+                {
                     working_directory = fs_path.substr(0, slash);
-
-                fillCgiRequest(req, fs_path, working_directory, it->second, config, cgireq);
-
+                    script_name = fs_path.substr(slash + 1);
+                }
+                fillCgiRequest(req, script_name, working_directory, it->second, config, cgireq);
                 if (cgi_req && is_cgi)
                 {
                     *is_cgi = true;
