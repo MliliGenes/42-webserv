@@ -394,8 +394,9 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
         if (file_data.empty() && filename.empty())
             return buildError(400, config);
     }
-    else
+    else{
         file_data = req.body;
+    }
 	
 	std::string path;
 	if (filename.empty()) {
