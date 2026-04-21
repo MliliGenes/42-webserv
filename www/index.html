@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WEBSERV // TEST CONSOLE</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="noise"></div>
+
+<header>
+  <div class="logo">WS<span class="blink">_</span></div>
+  <nav>
+    <a href="index.html" class="active">HOME</a>
+    <a href="form.html">POST FORM</a>
+    <a href="upload.html">FILE UPLOAD</a>
+    <a href="delete.html">DELETE</a>
+    <a href="headers.html">HEADERS</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="tag">// index.html — GET 200</div>
+    <h1>WEBSERV<br><span class="dim">TEST CONSOLE</span></h1>
+    <p class="sub">Static files · POST forms · File uploads · DELETE · CGI · Keep-alive · Chunked transfer</p>
+  </section>
+
+  <section class="grid">
+
+    <a href="form.html" class="card">
+      <div class="card-method">POST</div>
+      <h2>Form Submit</h2>
+      <p>application/x-www-form-urlencoded and JSON body. Tests request parsing, Content-Length, and response dispatch.</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="upload.html" class="card">
+      <div class="card-method post">POST</div>
+      <h2>File Upload</h2>
+      <p>multipart/form-data upload. Tests large body buffering, uploadStore routing, and 201 Created response.</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="delete.html" class="card">
+      <div class="card-method del">DELETE</div>
+      <h2>Delete Resource</h2>
+      <p>Send DELETE requests to a path. Tests 204 No Content, 404 Not Found, and route method restrictions.</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="headers.html" class="card">
+      <div class="card-method">GET</div>
+      <h2>Headers Inspector</h2>
+      <p>Inspect request headers, keep-alive state, and connection metadata echoed back from the server.</p>
+      <div class="card-arrow">→</div>
+    </a>
+
+  </section>
+
+  <section class="status-bar">
+    <div class="status-item">
+      <span class="dot green"></span>
+      <span>SERVER RUNNING</span>
+    </div>
+    <div class="status-item">
+      <span class="label">HOST</span>
+      <span id="host-display">—</span>
+    </div>
+    <div class="status-item">
+      <span class="label">PROTOCOL</span>
+      <span>HTTP/1.1</span>
+    </div>
+    <div class="status-item">
+      <span class="label">KEEP-ALIVE</span>
+      <span>ENABLED</span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>webserv · 42 project</span>
+  <span id="ts"></span>
+</footer>
+
+<script>
+  document.getElementById('host-display').textContent = location.host;
+  document.getElementById('ts').textContent = new Date().toISOString();
+</script>
+</body>
+</html>

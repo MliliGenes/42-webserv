@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I AM MUSIC — PLAYBOI CARTI</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Oswald:wght@700&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --black: #000;
+            --white: #fff;
+            --off: #e8e8e8;
+            --dim: #888;
+            --ghost: #333;
+            --mid: #1a1a1a;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--black);
+            color: var(--white);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-x: hidden;
+            cursor: crosshair;
+        }
+
+        /* ── NOISE OVERLAY ── */
+        .noise {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            background-size: 200px 200px;
+            animation: noiseShift 0.08s steps(1) infinite;
+        }
+
+        @keyframes noiseShift {
+            0% {
+                background-position: 0 0;
+            }
+
+            25% {
+                background-position: -30px 20px;
+            }
+
+            50% {
+                background-position: 40px -10px;
+            }
+
+            75% {
+                background-position: -20px -30px;
+            }
+
+            100% {
+                background-position: 10px 40px;
+            }
+        }
+
+        /* ── SCANLINES ── */
+        .scanlines {
+            position: fixed;
+            inset: 0;
+            z-index: 9997;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.08) 2px,
+                    rgba(0, 0, 0, 0.08) 4px);
+        }
+
+        /* ── TOP BAR ── */
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--ghost);
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(2px);
+        }
+
+        .topbar-left {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            color: var(--dim);
+            text-transform: uppercase;
+        }
+
+        .topbar-right {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            color: var(--dim);
+            text-transform: uppercase;
+        }
+
+        .live-dot {
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            background: white;
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: blink 1.2s steps(1) infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            49% {
+                opacity: 1
+            }
+
+            50%,
+            100% {
+                opacity: 0
+            }
+        }
+
+        /* ── HERO ── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 0 1.5rem 3rem;
+            padding-top: 80px;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 1px solid var(--ghost);
+        }
+
+        .hero-bg-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(12rem, 38vw, 42rem);
+            line-height: 0.8;
+            color: transparent;
+            -webkit-text-stroke: 1px rgba(255, 255, 255, 0.04);
+            white-space: nowrap;
+            pointer-events: none;
+            user-select: none;
+            letter-spacing: -0.03em;
+        }
+
+        .hero-meta {
+            font-size: 0.6rem;
+            letter-spacing: 0.35em;
+            color: var(--dim);
+            text-transform: uppercase;
+            margin-bottom: 1.2rem;
+            opacity: 0;
+            animation: fadeIn 0.8s ease 0.3s forwards;
+        }
+
+        .hero-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(4.5rem, 22vw, 22rem);
+            line-height: 0.82;
+            letter-spacing: -0.02em;
+            color: var(--white);
+            position: relative;
+            opacity: 0;
+            animation: fadeIn 0.6s ease 0.1s forwards;
+        }
+
+        .hero-title .line2 {
+            display: block;
+            color: transparent;
+            -webkit-text-stroke: 2px var(--white);
+        }
+
+        .hero-title .line3 {
+            display: block;
+            font-size: clamp(1.8rem, 7vw, 7rem);
+            -webkit-text-stroke: 0;
+            color: var(--white);
+            letter-spacing: 0.08em;
+        }
+
+        .hero-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 2.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+            opacity: 0;
+            animation: fadeIn 0.8s ease 0.6s forwards;
+        }
+
+        .hero-stat {
+            text-align: left;
+        }
+
+        .hero-stat-num {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(2rem, 6vw, 4.5rem);
+            line-height: 1;
+            color: var(--white);
+        }
+
+        .hero-stat-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.3em;
+            color: var(--dim);
+            text-transform: uppercase;
+            margin-top: 0.2rem;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .release-block {
+            text-align: right;
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: var(--dim);
+            line-height: 2;
+        }
+
+        /* ── GLITCH ── */
+        .glitch {
+            position: relative;
+            display: inline-block;
+        }
+
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .glitch::before {
+            color: var(--white);
+            clip-path: polygon(0 35%, 100% 35%, 100% 50%, 0 50%);
+            transform: translateX(-3px);
+            animation: glitch1 3.5s steps(1) infinite;
+            opacity: 0.8;
+        }
+
+        .glitch::after {
+            color: var(--white);
+            clip-path: polygon(0 60%, 100% 60%, 100% 75%, 0 75%);
+            transform: translateX(3px);
+            animation: glitch2 4.2s steps(1) infinite;
+            opacity: 0.8;
+        }
+
+        @keyframes glitch1 {
+
+            0%,
+            90%,
+            100% {
+                transform: translateX(0);
+                opacity: 0;
+            }
+
+            92% {
+                transform: translateX(-4px) skewX(-2deg);
+                opacity: 0.8;
+            }
+
+            94% {
+                transform: translateX(4px);
+                opacity: 0.5;
+            }
+
+            96% {
+                transform: translateX(-2px);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes glitch2 {
+
+            0%,
+            88%,
+            100% {
+                transform: translateX(0);
+                opacity: 0;
+            }
+
+            90% {
+                transform: translateX(4px) skewX(1deg);
+                opacity: 0.8;
+            }
+
+            93% {
+                transform: translateX(-3px);
+                opacity: 0.5;
+            }
+
+            95% {
+                transform: translateX(2px);
+                opacity: 0.7;
+            }
+        }
+
+        /* ── MARQUEE ── */
+        .marquee-wrap {
+            border-top: 1px solid var(--ghost);
+            border-bottom: 1px solid var(--ghost);
+            overflow: hidden;
+            white-space: nowrap;
+            padding: 0.9rem 0;
+            background: var(--black);
+        }
+
+        .marquee-inner {
+            display: inline-block;
+            animation: marquee 35s linear infinite;
+        }
+
+        .marquee-inner span {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.05rem;
+            letter-spacing: 0.2em;
+            color: var(--white);
+            padding: 0 2.5rem;
+        }
+
+        .marquee-inner .dot {
+            color: var(--dim);
+            padding: 0;
+        }
+
+        @keyframes marquee {
+            from {
+                transform: translateX(0);
+            }
+
+            to {
+                transform: translateX(-50%);
+            }
+        }
+
+        /* ── SECTIONS ── */
+        section {
+            padding: 5rem 1.5rem;
+            border-bottom: 1px solid var(--ghost);
+        }
+
+        .section-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.5em;
+            color: var(--dim);
+            text-transform: uppercase;
+            margin-bottom: 3rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--ghost);
+        }
+
+        /* ── ABOUT ── */
+        .about-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+        }
+
+        @media(max-width:640px) {
+            .about-grid {
+                grid-template-columns: 1fr;
+                gap: 2.5rem;
+            }
+        }
+
+        .about-big {
+            font-family: 'Oswald', sans-serif;
+            font-size: clamp(1.8rem, 5vw, 3.2rem);
+            line-height: 1.15;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: -0.01em;
+        }
+
+        .about-big em {
+            font-style: normal;
+            color: transparent;
+            -webkit-text-stroke: 1px var(--white);
+        }
+
+        .about-body {
+            font-size: 0.8rem;
+            line-height: 2.1;
+            color: #aaa;
+            letter-spacing: 0.04em;
+            max-width: 52ch;
+        }
+
+        .about-body strong {
+            color: var(--white);
+            font-weight: normal;
+        }
+
+        /* ── TRACKS ── */
+        .tracklist {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0;
+        }
+
+        @media(max-width:640px) {
+            .tracklist {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .track {
+            display: flex;
+            align-items: baseline;
+            gap: 1.2rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--ghost);
+            transition: background 0.15s;
+            cursor: crosshair;
+            padding-left: 0.5rem;
+        }
+
+        .track:nth-child(odd) {
+            border-right: 1px solid var(--ghost);
+            padding-right: 1.5rem;
+        }
+
+        .track:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .track-num {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.6rem;
+            color: var(--dim);
+            min-width: 2.2rem;
+            flex-shrink: 0;
+        }
+
+        .track-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.05rem;
+            letter-spacing: 0.06em;
+            color: var(--white);
+            line-height: 1.2;
+        }
+
+        .track-feat {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.55rem;
+            color: var(--dim);
+            margin-left: auto;
+            flex-shrink: 0;
+            letter-spacing: 0.1em;
+            text-align: right;
+            max-width: 10rem;
+        }
+
+        /* ── FEATURES ── */
+        .features-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1px;
+        }
+
+        .feat-card {
+            background: var(--mid);
+            border: 1px solid var(--ghost);
+            padding: 1.8rem 2rem;
+            flex: 1 1 180px;
+            position: relative;
+            overflow: hidden;
+            transition: background 0.2s;
+            cursor: crosshair;
+        }
+
+        .feat-card::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: white;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .feat-card:hover {
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .feat-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feat-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.4rem;
+            letter-spacing: 0.05em;
+            color: var(--white);
+            line-height: 1.1;
+            margin-bottom: 0.4rem;
+        }
+
+        .feat-count {
+            font-size: 0.55rem;
+            color: var(--dim);
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+        }
+
+        /* ── STATS ROW ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--ghost);
+            border: 1px solid var(--ghost);
+        }
+
+        @media(max-width:640px) {
+            .stats-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .stat-cell {
+            background: var(--black);
+            padding: 2.5rem 1.5rem;
+        }
+
+        .stat-cell-num {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(2.5rem, 7vw, 5rem);
+            line-height: 0.9;
+            color: var(--white);
+        }
+
+        .stat-cell-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.3em;
+            color: var(--dim);
+            text-transform: uppercase;
+            margin-top: 0.6rem;
+            line-height: 1.6;
+        }
+
+        /* ── FOOTER ── */
+        footer {
+            padding: 3rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .footer-left {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.5rem;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.08);
+        }
+
+        .footer-right {
+            font-size: 0.55rem;
+            letter-spacing: 0.3em;
+            color: var(--dim);
+            text-align: right;
+            line-height: 2.2;
+        }
+
+        /* ── ANIMATIONS ── */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="noise"></div>
+    <div class="scanlines"></div>
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+        <div class="topbar-left"><span class="live-dot"></span>AWGE / INTERSCOPE RECORDS</div>
+        <div class="topbar-right">MAR 14 2025 &nbsp;·&nbsp; 07:30 EST</div>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-bg-text">MUSIC</div>
+
+        <p class="hero-meta">003 — THIRD STUDIO ALBUM — PLAYBOI CARTI</p>
+
+        <h1 class="hero-title">
+            <span class="glitch" data-text="I AM">I AM</span>
+            <span class="line2">MUSIC</span>
+            <span class="line3">PLAYBOI CARTI</span>
+        </h1>
+
+        <div class="hero-bottom">
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="hero-stat-num">30</div>
+                    <div class="hero-stat-label">TRACKS</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-num">77</div>
+                    <div class="hero-stat-label">MINUTES</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-num">#1</div>
+                    <div class="hero-stat-label">BILLBOARD 200</div>
+                </div>
+            </div>
+            <div class="release-block">
+                MARCH 14, 2025<br>
+                AWGE · INTERSCOPE<br>
+                298K FIRST-WEEK UNITS
+            </div>
+        </div>
+    </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee-wrap">
+        <div class="marquee-inner">
+            <span>POP OUT</span><span class="dot">·</span>
+            <span>CRUSH</span><span class="dot">·</span>
+            <span>PHILLY</span><span class="dot">·</span>
+            <span>RATHER LIE</span><span class="dot">·</span>
+            <span>OPM BABI</span><span class="dot">·</span>
+            <span>COCAINE NOSE</span><span class="dot">·</span>
+            <span>EVIL JORDAN</span><span class="dot">·</span>
+            <span>BACKD00R</span><span class="dot">·</span>
+            <span>WAKE UP F1LTHY</span><span class="dot">·</span>
+            <span>JUMPIN</span><span class="dot">·</span>
+            <span>TRIM</span><span class="dot">·</span>
+            <span>GOOD CREDIT</span><span class="dot">·</span>
+            <span>TWIN TRIM</span><span class="dot">·</span>
+            <span>WE NEED ALL DA VIBES</span><span class="dot">·</span>
+            <span>TOXIC</span><span class="dot">·</span>
+            <span>RADAR</span><span class="dot">·</span>
+            <!-- duplicate for seamless loop -->
+            <span>POP OUT</span><span class="dot">·</span>
+            <span>CRUSH</span><span class="dot">·</span>
+            <span>PHILLY</span><span class="dot">·</span>
+            <span>RATHER LIE</span><span class="dot">·</span>
+            <span>OPM BABI</span><span class="dot">·</span>
+            <span>COCAINE NOSE</span><span class="dot">·</span>
+            <span>EVIL JORDAN</span><span class="dot">·</span>
+            <span>BACKD00R</span><span class="dot">·</span>
+            <span>WAKE UP F1LTHY</span><span class="dot">·</span>
+            <span>JUMPIN</span><span class="dot">·</span>
+            <span>TRIM</span><span class="dot">·</span>
+            <span>GOOD CREDIT</span><span class="dot">·</span>
+            <span>TWIN TRIM</span><span class="dot">·</span>
+            <span>WE NEED ALL DA VIBES</span><span class="dot">·</span>
+            <span>TOXIC</span><span class="dot">·</span>
+            <span>RADAR</span><span class="dot">·</span>
+        </div>
+    </div>
+
+    <!-- STATS ROW -->
+    <div class="stats-row reveal">
+        <div class="stat-cell">
+            <div class="stat-cell-num">298K</div>
+            <div class="stat-cell-label">ALBUM-EQUIVALENT<br>UNITS / WEEK 1</div>
+        </div>
+        <div class="stat-cell">
+            <div class="stat-cell-num">9</div>
+            <div class="stat-cell-label">FEATURED<br>ARTISTS</div>
+        </div>
+        <div class="stat-cell">
+            <div class="stat-cell-num">5</div>
+            <div class="stat-cell-label">YEARS SINCE<br>WHOLE LOTTA RED</div>
+        </div>
+        <div class="stat-cell">
+            <div class="stat-cell-num">30</div>
+            <div class="stat-cell-label">TRACKS ON<br>STANDARD EDITION</div>
+        </div>
+    </div>
+
+    <!-- ABOUT -->
+    <section>
+        <p class="section-label">00 — ABOUT</p>
+        <div class="about-grid reveal">
+            <div>
+                <p class="about-big">
+                    THE WAIT<br>
+                    <em>IS OVER.</em><br>
+                    KING VAMP<br>
+                    RETURNS.
+                </p>
+            </div>
+            <div>
+                <p class="about-body">
+                    <strong>MUSIC</strong> — also known as I AM MUSIC — is the third studio album from Atlanta rapper
+                    Playboi Carti. Released March 14, 2025 through AWGE and Interscope, it marks a dramatic shift from
+                    the baby-voice approach of <strong>Whole Lotta Red</strong> toward a deeper, raspier delivery rooted
+                    in 2000s Atlanta mixtape culture.<br><br>
+                    Production credits span <strong>Ojivolta, Cardo, F1lthy, Metro Boomin, Kanye West</strong> and 808
+                    Mafia members TM88 and Southside. Billboards reading <strong>"I AM MUSIC MF"</strong> appeared in
+                    Times Square, Downtown LA and Miami before the drop. Recording continued until hours before release.
+                    The album debuted at <strong>#1 on the Billboard 200</strong> — Carti's fastest-selling project to
+                    date and the highest-selling rap album debut of 2025.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section>
+        <p class="section-label">01 — FEATURES</p>
+        <div class="features-grid reveal">
+            <div class="feat-card">
+                <div class="feat-name">TRAVIS SCOTT</div>
+                <div class="feat-count">×3 APPEARANCES</div>
+            </div>
+            <div class="feat-card">
+                <div class="feat-name">KENDRICK LAMAR</div>
+                <div class="feat-count">×2 APPEARANCES</div>
+            </div>
+            <div class="feat-card">
+                <div class="feat-name">THE WEEKND</div>
+                <div class="feat-count">×1 APPEARANCE</div>
+            </div>
+            <div class="feat-card">
+                <div class="feat-name">LIL UZI VERT</div>
+                <div class="feat-count">×2 APPEARANCES</div>
+            </div>
+            <div class="feat-card">
+                <div class="feat-name">FUTURE</div>
+                <div class="feat-count">×2 APPEARANCES</div>
+            </div>
+            <div class="feat-card">
+                <div class="feat-name">YOUNG THUG</div>
+                <div class="feat-count">×1 APPEARANCE</div>
+            </div>
+            <div class="feat-card">
+                <div class="feat-name">TY DOLLA $IGN</div>
+                <div class="feat-count">×1 APPEARANCE</div>
+            </div>
+            <div class="feat-card">
+                <div class="feat-name">SKEPTA</div>
+                <div class="feat-count">×1 APPEARANCE</div>
+            </div>
+            <div class="feat-card">
+                <div class="feat-name">JHENÉ AIKO</div>
+                <div class="feat-count">×1 APPEARANCE</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TRACKLIST -->
+    <section>
+        <p class="section-label">02 — TRACKLIST</p>
+        <div class="tracklist reveal">
+            <div class="track"><span class="track-num">01</span><span class="track-name">WALK UP</span></div>
+            <div class="track"><span class="track-num">02</span><span class="track-name">N0T T0NIGHT</span></div>
+            <div class="track"><span class="track-num">03</span><span class="track-name">POP OUT</span></div>
+            <div class="track"><span class="track-num">04</span><span class="track-name">CRUSH</span><span
+                    class="track-feat">FT. TRAVIS SCOTT</span></div>
+            <div class="track"><span class="track-num">05</span><span class="track-name">PHILLY</span><span
+                    class="track-feat">FT. TRAVIS SCOTT</span></div>
+            <div class="track"><span class="track-num">06</span><span class="track-name">RATHER LIE</span><span
+                    class="track-feat">FT. THE WEEKND</span></div>
+            <div class="track"><span class="track-num">07</span><span class="track-name">COCAINE NOSE</span></div>
+            <div class="track"><span class="track-num">08</span><span class="track-name">OPM BABI</span></div>
+            <div class="track"><span class="track-num">09</span><span class="track-name">TOXIC</span><span
+                    class="track-feat">FT. SKEPTA</span></div>
+            <div class="track"><span class="track-num">10</span><span class="track-name">K POP</span></div>
+            <div class="track"><span class="track-num">11</span><span class="track-name">EVIL J0RDAN</span></div>
+            <div class="track"><span class="track-num">12</span><span class="track-name">CHARGE DEM HOES A
+                    FEE</span><span class="track-feat">FT. FUTURE</span></div>
+            <div class="track"><span class="track-num">13</span><span class="track-name">GOOD CREDIT</span><span
+                    class="track-feat">FT. KENDRICK LAMAR</span></div>
+            <div class="track"><span class="track-num">14</span><span class="track-name">MOJO JOJO</span><span
+                    class="track-feat">FT. KENDRICK LAMAR</span></div>
+            <div class="track"><span class="track-num">15</span><span class="track-name">BACKD00R</span><span
+                    class="track-feat">FT. KENDRICK · JHENÉ</span></div>
+            <div class="track"><span class="track-num">16</span><span class="track-name">WAKE UP F1LTHY</span><span
+                    class="track-feat">FT. TRAVIS SCOTT</span></div>
+            <div class="track"><span class="track-num">17</span><span class="track-name">JUMPIN</span><span
+                    class="track-feat">FT. LIL UZI VERT</span></div>
+            <div class="track"><span class="track-num">18</span><span class="track-name">TRIM</span><span
+                    class="track-feat">FT. FUTURE</span></div>
+            <div class="track"><span class="track-num">19</span><span class="track-name">H00DBYAIR</span></div>
+            <div class="track"><span class="track-num">20</span><span class="track-name">RADAR</span></div>
+            <div class="track"><span class="track-num">21</span><span class="track-name">LIKE WEEZY</span></div>
+            <div class="track"><span class="track-num">22</span><span class="track-name">I SEEEEEE YOU BABY BOI</span>
+            </div>
+            <div class="track"><span class="track-num">23</span><span class="track-name">WE NEED ALL DA
+                    VIBES</span><span class="track-feat">FT. TY DOLLA $IGN · THUG</span></div>
+            <div class="track"><span class="track-num">24</span><span class="track-name">TWIN TRIM</span><span
+                    class="track-feat">FT. LIL UZI VERT</span></div>
+            <div class="track"><span class="track-num">25</span><span class="track-name">FINE SHIT</span></div>
+            <div class="track"><span class="track-num">26</span><span class="track-name">ALL RED</span></div>
+            <div class="track"><span class="track-num">27</span><span class="track-name">OVERLY TRIM</span></div>
+            <div class="track"><span class="track-num">28</span><span class="track-name">KETAMINE</span></div>
+            <div class="track"><span class="track-num">29</span><span class="track-name">DIFFERENT DAY</span></div>
+            <div class="track"><span class="track-num">30</span><span class="track-name">WALK OUTSIDE</span></div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="reveal">
+        <div class="footer-left">OPIUM</div>
+        <div class="footer-right">
+            AWGE / INTERSCOPE RECORDS<br>
+            © 2025 JORDAN TERRELL CARTER<br>
+            ATLANTA, GEORGIA
+        </div>
+    </footer>
+
+    <script>
+        // ── Intersection observer for reveals ────────────────────────────
+        const reveals = document.querySelectorAll('.reveal');
+        const io = new IntersectionObserver(entries => {
+            entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+        }, { threshold: 0.08 });
+        reveals.forEach(el => io.observe(el));
+
+        // ── Occasional glitch flicker on hero title ───────────────────────
+        const title = document.querySelector('.hero-title');
+        setInterval(() => {
+            if (Math.random() < 0.3) {
+                title.style.transform = `translateX(${(Math.random() - 0.5) * 4}px) skewX(${(Math.random() - 0.5) * 1.5}deg)`;
+                setTimeout(() => { title.style.transform = ''; }, 60 + Math.random() * 80);
+            }
+        }, 2800);
+
+        // ── Track hover flash ─────────────────────────────────────────────
+        document.querySelectorAll('.track').forEach(t => {
+            t.addEventListener('mouseenter', () => {
+                t.querySelector('.track-name').style.letterSpacing = '0.12em';
+            });
+            t.addEventListener('mouseleave', () => {
+                t.querySelector('.track-name').style.letterSpacing = '';
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POST FORM // WEBSERV</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="noise"></div>
+
+<header>
+  <div class="logo">WS<span class="blink">_</span></div>
+  <nav>
+    <a href="index.html">HOME</a>
+    <a href="form.html" class="active">POST FORM</a>
+    <a href="upload.html">FILE UPLOAD</a>
+    <a href="delete.html">DELETE</a>
+    <a href="headers.html">HEADERS</a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <a href="index.html" class="back">← BACK</a>
+    <div class="tag">// form.html — POST /submit</div>
+    <h1>POST <span class="dim">FORM TEST</span></h1>
+  </div>
+
+  <div class="two-col">
+
+    <!-- form-urlencoded -->
+    <div>
+      <div class="panel">
+        <div class="panel-title">// application/x-www-form-urlencoded</div>
+        <form id="form-url">
+          <div class="field">
+            <label>USERNAME</label>
+            <input type="text" name="username" value="adnan" placeholder="your name">
+          </div>
+          <div class="field">
+            <label>EMAIL</label>
+            <input type="email" name="email" value="test@42.fr" placeholder="you@example.com">
+          </div>
+          <div class="field">
+            <label>MESSAGE</label>
+            <textarea name="message" placeholder="Hello server...">Testing keep-alive connection</textarea>
+          </div>
+          <div class="field">
+            <label>POST TARGET PATH</label>
+            <input type="text" id="url-path" value="/submit" placeholder="/your-route">
+          </div>
+          <button type="submit" class="btn amber">SEND REQUEST →</button>
+        </form>
+      </div>
+      <div class="response-label">RESPONSE</div>
+      <div class="response-box" id="res-url">waiting...</div>
+    </div>
+
+    <!-- raw body tests -->
+    <div>
+      <div class="panel">
+        <div class="panel-title">// raw body / large payload test</div>
+        <div class="field">
+          <label>BODY SIZE (bytes)</label>
+          <input type="number" id="body-size" value="512" min="1" max="1048576">
+        </div>
+        <div class="field">
+          <label>POST TARGET PATH</label>
+          <input type="text" id="raw-path" value="/submit" placeholder="/your-route">
+        </div>
+        <div class="field">
+          <label>CONTENT-TYPE</label>
+          <select id="raw-ctype">
+            <option value="text/plain">text/plain</option>
+            <option value="application/json">application/json</option>
+            <option value="application/octet-stream">application/octet-stream</option>
+          </select>
+        </div>
+        <button class="btn amber" id="btn-raw">SEND RAW BODY →</button>
+        &nbsp;
+        <button class="btn" id="btn-oversized">SEND OVERSIZED (test 413)</button>
+      </div>
+      <div class="response-label">RESPONSE</div>
+      <div class="response-box" id="res-raw">waiting...</div>
+    </div>
+
+  </div>
+
+  <!-- keep-alive stress test -->
+  <div class="panel">
+    <div class="panel-title">// keep-alive — sequential requests over one connection</div>
+    <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+      <div class="field" style="margin:0;flex:0 0 140px">
+        <label>REQUEST COUNT</label>
+        <input type="number" id="ka-count" value="5" min="1" max="50">
+      </div>
+      <div class="field" style="margin:0;flex:1;min-width:160px">
+        <label>PATH</label>
+        <input type="text" id="ka-path" value="/submit">
+      </div>
+      <button class="btn" id="btn-ka">RUN KEEP-ALIVE TEST →</button>
+    </div>
+    <br>
+    <div class="response-label">LOG</div>
+    <div class="response-box" id="res-ka" style="min-height:120px">waiting...</div>
+  </div>
+
+</main>
+
+<footer>
+  <span>webserv · POST form</span>
+  <span id="ts"></span>
+</footer>
+
+<script>
+document.getElementById('ts').textContent = new Date().toISOString();
+
+function setRes(id, text, ok) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'response-box ' + (ok ? 'ok' : 'error');
+}
+
+// ── urlencoded form ───────────────────────
+document.getElementById('form-url').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const path = document.getElementById('url-path').value || '/submit';
+  const data = new URLSearchParams(new FormData(this)).toString();
+  setRes('res-url', 'sending...', true);
+  try {
+    const r = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: data
+    });
+    const body = await r.text();
+    setRes('res-url', `HTTP ${r.status} ${r.statusText}\n\n${body}`, r.ok);
+  } catch(err) {
+    setRes('res-url', 'ERROR: ' + err.message, false);
+  }
+});
+
+// ── raw body ──────────────────────────────
+document.getElementById('btn-raw').addEventListener('click', async function() {
+  const path  = document.getElementById('raw-path').value || '/submit';
+  const size  = parseInt(document.getElementById('body-size').value);
+  const ctype = document.getElementById('raw-ctype').value;
+  const body  = 'A'.repeat(size);
+  setRes('res-raw', 'sending...', true);
+  try {
+    const r = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': ctype },
+      body
+    });
+    const text = await r.text();
+    setRes('res-raw', `HTTP ${r.status} ${r.statusText}\nContent-Length sent: ${size}\n\n${text}`, r.ok);
+  } catch(err) {
+    setRes('res-raw', 'ERROR: ' + err.message, false);
+  }
+});
+
+// ── oversized ─────────────────────────────
+document.getElementById('btn-oversized').addEventListener('click', async function() {
+  const path = document.getElementById('raw-path').value || '/submit';
+  const body = 'X'.repeat(10 * 1024 * 1024); // 10 MB
+  setRes('res-raw', 'sending 10MB body (expect 413)...', true);
+  try {
+    const r = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body
+    });
+    const text = await r.text();
+    setRes('res-raw', `HTTP ${r.status} ${r.statusText}\n\n${text}`, r.status === 413);
+  } catch(err) {
+    setRes('res-raw', 'ERROR: ' + err.message, false);
+  }
+});
+
+// ── keep-alive test ───────────────────────
+document.getElementById('btn-ka').addEventListener('click', async function() {
+  const count = parseInt(document.getElementById('ka-count').value);
+  const path  = document.getElementById('ka-path').value || '/submit';
+  const log   = document.getElementById('res-ka');
+  log.textContent = '';
+  log.className = 'response-box';
+
+  for (let i = 1; i <= count; i++) {
+    const t0 = performance.now();
+    try {
+      const r = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain', 'Connection': 'keep-alive' },
+        body: `request ${i} of ${count}`
+      });
+      const ms = (performance.now() - t0).toFixed(1);
+      log.textContent += `[${i}] HTTP ${r.status}  ${ms}ms\n`;
+    } catch(err) {
+      log.textContent += `[${i}] ERROR: ${err.message}\n`;
+    }
+  }
+  log.className = 'response-box ok';
+});
+</script>
+</body>
+</html>

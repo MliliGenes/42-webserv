@@ -1,0 +1,77 @@
+[
+    {
+      "server": {
+        "host": "127.0.0.1",
+        "port": 3030,
+        "server_name": ["webserv", "localhost"],
+        "client_max_body_size": "1G",
+        "root": "./www",
+        "index": ["index.html"],
+  
+        "error_pages": {
+          "403": "./www/errors/403.html",
+          "404": "./www/errors/404.html",
+          "500": "./www/errors/500.html",
+          "502": "./www/errors/502.html",
+          "503": "./www/errors/503.html",
+          "504": "./www/errors/504.html"
+        },
+  
+        "locations": [
+          {
+            "path": "/",
+            "methods": ["GET"],
+            "root": "./www",
+            "index": ["index.html"],
+            "autoindex": false
+          },
+  
+          {
+            "path": "/submit",
+            "methods": ["POST", "DELETE"],
+            "root": "./www/submit",
+            "upload_enable": true,
+            "upload_store": "./www/submit"
+          },
+  
+          {
+            "path": "/upload",
+            "methods": ["GET", "POST", "DELETE"],
+            "root": "./www/upload",
+            "upload_enable": true,
+            "upload_store": "./www/upload"
+          },
+          {
+            "path": "/image",
+            "methods": ["GET", "POST", "DELETE"],
+            "root": "./www/images",
+			      "index": ["image2.jpg"],
+            "upload_enable": true,
+            "upload_store": "./www/images",
+			      "autoindex": true
+          },
+  
+          {
+            "path": "/cgi-bin",
+            "methods": ["GET", "POST"],
+            "root": "./www",
+            "cgi": {
+              ".py": "/usr/bin/python3",
+              ".php": "/usr/bin/php-cgi",
+              ".js": "/usr/bin/node",
+              ".sh": "/bin/bash"
+            }
+          },
+  
+          {
+            "path": "/redirect",
+            "methods" : ["GET"],
+            "redirect": {
+              "code": 301,
+              "url": "https://www.youtube.com/watch?v=1HfeGXgxoY8"
+            }
+          }
+        ]
+      }
+    }
+  ]

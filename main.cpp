@@ -5,10 +5,8 @@
 #include "server/core/Config.hpp"
 #include "server/core/Server.hpp"
 
-void ll() {system("leaks webserv");}
 
 int main (int ac, char ** av) {
-    // atexit(ll);
     TrpJsonParser parser;
 
     TrpJsonLexer* lexer = NULL;
@@ -18,30 +16,31 @@ int main (int ac, char ** av) {
     else {
         lexer = new TrpJsonLexer(av[1]);
     }
+
     parser.setLexer(lexer);
 
     if (!parser.parse()) {
         std::cerr << "Failed to parse JSON file." << std::endl;
-        // delete  lexer;
         return 1;
     }
 
-    // parser.prettyPrint();
-
     TrpValidatorContext ctx;
     if (!serversConfigArray.validate(parser.getAST(), ctx)) {
+        std::cerr << "\n--- Validation Errors ---" << std::endl;
+        parser.prettyPrint();
         ctx.printErrors();
         return 1;
     }
 
     try {
         Config configs(parser.getAST());
-        configs.prettyPrint();
+        // configs.prettyPrint();
         
         Server server(configs);
         server.run();
     } catch (std::exception &e) {
         std::cerr << e.what() << std::endl;
+        return 1;
     }
 
     return 0;

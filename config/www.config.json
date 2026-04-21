@@ -1,0 +1,31 @@
+[
+    {
+        "server": {
+            "host": "127.0.0.1",
+            "port": 4000,
+            "server_name": [
+                "localhost"
+            ],
+            "client_max_body_size": "100M",
+            "root": "www",
+            "index": [
+                "index.html"
+            ],
+            "locations": [
+                {
+                    "path": "/",
+                    "methods": [
+                        "POST", "GET", "DELETE"
+                    ],
+                    "autoindex": true,
+                    "index": [
+                        "index.html"
+                    ],
+                    "cgi": {
+                        ".py": "/usr/bin/python3"
+                    }
+                }
+            ]
+        }
+    }
+]

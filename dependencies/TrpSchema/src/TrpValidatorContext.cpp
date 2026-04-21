@@ -1,4 +1,5 @@
 #include "../include/TrpValidatorContext.hpp"
+#include <sstream>
 
 TrpValidatorContext::TrpValidatorContext( void ) {}
 
@@ -18,9 +19,11 @@ void TrpValidatorContext::pushError( ValidationError err ) {
 
 std::string TrpValidatorContext::getCurrentPath( void ) {
     std::string full_path;
-
-    for (TrpValidationPath::iterator it = paths.begin(); it != paths.end(); it ++) {
-        full_path += *it;
+    
+    //  FUNNY SHIIIIIT
+    for (TrpValidationPath::iterator it = paths.begin(); it != paths.end(); it++) {
+        std::string p(*it);
+        full_path.append(p);
     }
 
     return full_path;
