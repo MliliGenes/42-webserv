@@ -210,9 +210,6 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
 				cgirequest	cgireq;
 				cgiresponse	cgires;
                 std::string error;
-                // char resolved[4096];
-                // if (::realpath(fs_path.c_str(), resolved))
-                //     fs_path = resolved;
                 if (!fileExists(fs_path))//>>>>>
                 {
                     return buildError(404, config);
@@ -450,7 +447,6 @@ std::string ResponseBuilder::resolve_path(std::string root, std::string path, st
         if (root[root.size() - 1] != '/')
             return root + "/";
     }
-	std::cout << root << " " << path << " " << route_path << std::endl;
 	if (!route_path.empty())
     	path = path.substr(route_path.size());
     if (root[root.size() - 1] != '/' && path[0] != '/')
