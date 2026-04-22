@@ -193,8 +193,8 @@ void Server::_handle_read(size_t i) {
     if (status == RequestParser::Error) {
 		c->res = _res_b.buildError(c->req_parser.getErrorCode(), _configs[c->server_block_index]);} else {
 		c->req = c->req_parser.getRequest();
-        c->keep_alive = (c->req.headers.count("connection") &&
-                        c->req.headers.at("connection") == "keep-alive");
+        std::map<std::string, std::string>::iterator conn_it = c->req.headers.find("connection");
+        c->keep_alive = (conn_it != c->req.headers.end() && conn_it->second == "keep-alive");
 
         CgiRequest cgireq;
         bool is_cgi = false;
@@ -299,7 +299,7 @@ void Server::_handle_write(size_t i) {
             if (sent < r)
                 c->res_file.seekg(-(r - sent), std::ios::cur);
             c->res_file_remaining -= sent;
-            c->last_active = time(NULL);;
+            c->last_active = time(NULL);
             return;
         }
         _close_file(c);
@@ -499,8 +499,7 @@ void Server::run() {
             continue;
         }
 
-        size_t sz = _pollfds.size();
-        for (size_t i = 0; i < sz; i++) {
+        for (size_t i = 0; i < _pollfds.size(); i++) {
             if (_pollfds[i].fd < 0) continue;
             if (_pollfds[i].revents == 0) continue;
 
@@ -517,16 +516,27 @@ void Server::run() {
             }
 
             if (_pollfds[i].revents & (POLLHUP | POLLERR)) {
-                _close_client(i--); sz--;
+                _close_client(i--);
                 continue;
             }
 
-            if (_pollfds[i].revents & POLLIN)
+            if (_pollfds[i].revents & POLLIN) {
                 _handle_read(i);
+                if (_clients.find(fd) == _clients.end()) {
+                    i--;
+                    continue;
+                }
+            }
 
-            if (_clients.count(fd) && i < _pollfds.size() && _pollfds[i].fd == fd)
-                if (_pollfds[i].revents & POLLOUT)
+            if (_clients.count(fd) && i < _pollfds.size() && _pollfds[i].fd == fd) {
+                if (_pollfds[i].revents & POLLOUT) {
                     _handle_write(i);
+                    if (_clients.find(fd) == _clients.end()) {
+                        i--;
+                        continue;
+                    }
+                }
+            }
         }
         _compact_pollfds();
     }
