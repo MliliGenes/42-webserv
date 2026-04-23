@@ -400,10 +400,8 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
         std::ostringstream oss;
         oss << req.method << "_" << (req.path[0] == '/' ? req.path.substr(1) : req.path) << std::time(NULL);
         filename = oss.str();
-    	path = resolve_path(route.uploadStore, filename, "");
     }
-	else
-		path = resolve_path(route.uploadStore, filename, route.path);
+	path = resolve_path(route.uploadStore, filename, "");
     if (!writeFile(path, file_data))
         return buildError(500, config);
     Response res;
