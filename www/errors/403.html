@@ -1,2 +1,36 @@
-<h1>403 Forbidden</h1>
-<p>Access denied.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>403 Forbidden</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <div class="scanline"></div>
+  <div class="noise"></div>
+  <header>
+    <div class="logo">webserv</div>
+    <nav>
+      <a href="../index.html">home</a>
+    </nav>
+  </header>
+  <main>
+    <div class="page-header">
+      <a href="../index.html" class="back">← home</a>
+      <h1><span class="dim">Error</span> 403</h1>
+    </div>
+    <div class="panel">
+      <div class="panel-title">forbidden</div>
+      <p style="color: var(--red); font-size: 1rem; line-height: 1.8; margin-bottom: 2rem;">
+        You do not have permission to access this resource.
+      </p>
+      <a href="../index.html" class="btn">return home</a>
+    </div>
+  </main>
+  <footer>
+    <span>© 2026 webserv</span>
+    <span>status: <span class="dot red"></span> error</span>
+  </footer>
+</body>
+</html>

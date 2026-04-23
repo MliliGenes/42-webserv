@@ -70,7 +70,14 @@
               "code": 301,
               "url": "https://www.youtube.com/watch?v=1HfeGXgxoY8"
             }
+          },
+          {
+            "path": "/errors",
+            "methods": ["GET"], 
+            "root": "./www/errors",
+            "autoindex": true
           }
+          
         ]
       }
     }

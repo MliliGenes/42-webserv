@@ -175,26 +175,26 @@ bool request_complete(const std::string& buf) {
     return true;
 }
 
-void Server::_handle_read(size_t i) {
+bool Server::_handle_read(size_t i) {
     int fd = _pollfds[i].fd;
 	Client* c = _clients[fd];
     if (c->cgi.active)
-        return;
+        return false;
 
     char buf[4096];
     int n = recv(fd, buf, sizeof(buf), 0);
-    if (n < 0 && errno == EAGAIN) return;
-    if (n <= 0) { _close_client(i); return; }
+    if (n < 0 && errno == EAGAIN) return false;
+    if (n <= 0) { _close_client(i); return true; }
 
     c->last_active = time(NULL);
     RequestParser::Status status = c->req_parser.feed(buf, n);
-    if (status == RequestParser::Incomplete) return;
+    if (status == RequestParser::Incomplete) return false;
 
     if (status == RequestParser::Error) {
 		c->res = _res_b.buildError(c->req_parser.getErrorCode(), _configs[c->server_block_index]);} else {
 		c->req = c->req_parser.getRequest();
-        c->keep_alive = (c->req.headers.count("connection") &&
-                        c->req.headers.at("connection") == "keep-alive");
+        c->keep_alive = !(c->req.headers.count("connection") && 
+                c->req.headers.at("connection") == "close");
 
         CgiRequest cgireq;
         bool is_cgi = false;
@@ -207,15 +207,15 @@ void Server::_handle_read(size_t i) {
             {
                 c->res = _res_b.buildError(500, _configs[c->server_block_index]);
                 _res_b.applySessionCookieIfNeeded(c->req, c->res);
-         		c->res.headers["Connection"] = c->keep_alive ? "keep-alive" : "close";
-    			if (!c->res.headers.count("Content-Length")) {
+         	    c->res.headers["Connection"] = c->keep_alive ? "keep-alive" : "close";
+    		    if (!c->res.headers.count("Content-Length")) {
                     std::ostringstream len;
                     len << c->res.body.size();
                     c->res.headers["Content-Length"] = len.str();
                 }
                 c->res_buf = c->res.build();
                 _pollfds[i].events = POLLOUT;
-                return;
+                return false;
             }
             c->cgi.active = true;
             c->cgi.pid = proc.pid;
@@ -235,7 +235,7 @@ void Server::_handle_read(size_t i) {
 
             _add_cgi_fd(proc.out_fd, POLLIN | POLLHUP, c->fd, false);
             _pollfds[i].events = 0;
-            return;
+            return false;
         }
     }
 
@@ -261,23 +261,24 @@ void Server::_handle_read(size_t i) {
         c->res_buf = c->res.build();
     }
     _pollfds[i].events = POLLOUT;
+    return false;
 }
 
 // TODO: change this bullshit to the new logic
-void Server::_handle_write(size_t i) {
+bool Server::_handle_write(size_t i) {
     int fd = _pollfds[i].fd;
     Client* c = _clients[fd];
 
     if (c->cgi.active)
-        return;
+        return false;
 
     if (!c->res_buf.empty()) {
         int n = send(fd, c->res_buf.c_str(), c->res_buf.size(), 0);
-        if (n < 0 && errno == EAGAIN) return;
-        if (n < 0) { _close_client(i); return; }
+        if (n < 0 && errno == EAGAIN) return false;
+        if (n < 0) { _close_client(i); return true; }
         c->res_buf.erase(0, n);
         c->last_active = time(NULL);
-        if (!c->res_buf.empty()) return;
+        if (!c->res_buf.empty()) return false;
     }
 
 
@@ -287,25 +288,25 @@ void Server::_handle_write(size_t i) {
             std::streamsize to_read = std::min((off_t)FILE_CHUNK, c->res_file_remaining);
             c->res_file.read(chunk, to_read);
             std::streamsize r = c->res_file.gcount();
-            if (r <= 0) { _close_file(c); _close_client(i); return; }
+            if (r <= 0) { _close_file(c); _close_client(i); return true; }
 
             ssize_t sent = send(fd, chunk, r, 0);
             if (sent < 0 && errno == EAGAIN) {
                 c->res_file.seekg(-r, std::ios::cur);
-                return;
+                return false;
             }
-            if (sent < 0) { _close_file(c); _close_client(i); return; }
+            if (sent < 0) { _close_file(c); _close_client(i); return true; }
 
             if (sent < r)
                 c->res_file.seekg(-(r - sent), std::ios::cur);
             c->res_file_remaining -= sent;
-            c->last_active = time(NULL);;
-            return;
+            c->last_active = time(NULL);
+            return false;
         }
         _close_file(c);
     }
 
-    if (!c->res_buf.empty()) return;
+    if (!c->res_buf.empty()) return false;
 
     if (c->keep_alive) {
         c->req_parser.reset();
@@ -314,7 +315,9 @@ void Server::_handle_write(size_t i) {
         _pollfds[i].events = POLLIN;
     } else {
         _close_client(i);
+        return true;
     }
+    return false;
 }
 
 void Server::_handle_cgi_event(size_t i) {
@@ -522,11 +525,15 @@ void Server::run() {
             }
 
             if (_pollfds[i].revents & POLLIN)
-                _handle_read(i);
+            {   
+                 if (_handle_read(i))  { i--; sz--; continue; }
+            }
 
-            if (_clients.count(fd) && i < _pollfds.size() && _pollfds[i].fd == fd)
-                if (_pollfds[i].revents & POLLOUT)
-                    _handle_write(i);
+            if (_clients.count(fd) && i < _pollfds.size() && _pollfds[i].fd == fd) {
+                if (_pollfds[i].revents & POLLOUT) {
+                    if (_handle_write(i))  { i--; sz--; continue; }
+                }
+            }
         }
         _compact_pollfds();
     }
