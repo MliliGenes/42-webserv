@@ -1,7 +1,7 @@
 [
     {
       "server": {
-        "host": "127.0.0.1",
+        "host": "0.0.0.0",
         "port": 3030,
         "server_name": ["webserv", "localhost"],
         "client_max_body_size": "1G",
@@ -54,7 +54,7 @@
           {
             "path": "/cgi-bin",
             "methods": ["GET", "POST"],
-            "root": "./www",
+            "root": "./www/cgi-bin",
             "cgi": {
               ".py": "/usr/bin/python3",
               ".php": "/usr/bin/php-cgi",
@@ -70,7 +70,14 @@
               "code": 301,
               "url": "https://www.youtube.com/watch?v=1HfeGXgxoY8"
             }
+          },
+          {
+            "path": "/errors",
+            "methods": ["GET"], 
+            "root": "./www/errors",
+            "autoindex": true
           }
+          
         ]
       }
     }

@@ -1,3 +1,5 @@
 build/
+dependencies/TrpSchema/build
+dependencies/TrpJSON/build
 explain.md
 .DS_store

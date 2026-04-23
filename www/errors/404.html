@@ -1,2 +1,36 @@
-<h1>404 Not Found</h1>
-<p>The resource does not exist.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 Not Found</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <div class="scanline"></div>
+  <div class="noise"></div>
+  <header>
+    <div class="logo">webserv</div>
+    <nav>
+      <a href="../index.html">home</a>
+    </nav>
+  </header>
+  <main>
+    <div class="page-header">
+      <a href="../index.html" class="back">← home</a>
+      <h1><span class="dim">Error</span> 404</h1>
+    </div>
+    <div class="panel">
+      <div class="panel-title">not found</div>
+      <p style="color: var(--red); font-size: 1rem; line-height: 1.8; margin-bottom: 2rem;">
+        The requested resource could not be found on this server.
+      </p>
+      <a href="../index.html" class="btn">return home</a>
+    </div>
+  </main>
+  <footer>
+    <span>© 2026 webserv</span>
+    <span>status: <span class="dot red"></span> error</span>
+  </footer>
+</body>
+</html>

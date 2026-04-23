@@ -215,12 +215,14 @@ Response ResponseBuilder::handleGet(const Request&       req, const LocationConf
                     return buildError(404, config);
                 }
                 std::string working_directory = root;
+                std::string script_name = fs_path;
                 std::size_t slash = fs_path.rfind('/');
                 if (slash != std::string::npos)
+                {
                     working_directory = fs_path.substr(0, slash);
-
-                fillCgiRequest(req, fs_path, working_directory, it->second, config, cgireq);
-
+                    script_name = fs_path.substr(slash + 1);
+                }
+                fillCgiRequest(req, script_name, working_directory, it->second, config, cgireq);
                 if (cgi_req && is_cgi)
                 {
                     *is_cgi = true;
@@ -401,7 +403,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
         oss << req.method << "_" << (req.path[0] == '/' ? req.path.substr(1) : req.path) << std::time(NULL);
         filename = oss.str();
     }
-	path = resolve_path(route.uploadStore, filename, "");
+    path = resolve_path(route.uploadStore, filename, "");
     if (!writeFile(path, file_data))
         return buildError(500, config);
     Response res;

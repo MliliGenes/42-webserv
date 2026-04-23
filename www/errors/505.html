@@ -1,14 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>505 HTTP Version Not Supported</title>
-<style>
-body{font-family:Arial;background:#0f172a;color:#ef4444;text-align:center;padding-top:100px}
-h1{font-size:60px} p{font-size:22px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>505 HTTP Version Not Supported</title>
+  <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-<h1>505</h1>
-<p>HTTP Version Not Supported</p>
+  <div class="scanline"></div>
+  <div class="noise"></div>
+  <header>
+    <div class="logo">webserv</div>
+    <nav>
+      <a href="../index.html">home</a>
+    </nav>
+  </header>
+  <main>
+    <div class="page-header">
+      <a href="../index.html" class="back">← home</a>
+      <h1><span class="dim">Error</span> 505</h1>
+    </div>
+    <div class="panel">
+      <div class="panel-title">http version not supported</div>
+      <p style="color: var(--red); font-size: 1rem; line-height: 1.8; margin-bottom: 2rem;">
+        The HTTP version used in the request is not supported by this server.
+      </p>
+      <a href="../index.html" class="btn">return home</a>
+    </div>
+  </main>
+  <footer>
+    <span>© 2026 webserv</span>
+    <span>status: <span class="dot red"></span> error</span>
+  </footer>
 </body>
 </html>

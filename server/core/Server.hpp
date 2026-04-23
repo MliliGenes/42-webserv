@@ -78,8 +78,8 @@ class Server {
 
         void _setup_listeners();
         void _handle_accept(int fd);
-        void _handle_read(size_t i);
-        void _handle_write(size_t i);
+        bool _handle_read(size_t i);
+        bool _handle_write(size_t i);
         void _handle_cgi_event(size_t i);
         void _close_client(size_t i);
         void _add_fd(int fd, short events);
