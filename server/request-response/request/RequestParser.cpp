@@ -152,7 +152,7 @@ int RequestParser::parseHeaders()
 
     std::map<std::string, std::string>::const_iterator it;
     it = request_.headers.find("host");
-    if(it == request_.headers.end()){
+    if(it == request_.headers.end() && request_.version == "HTTP/1.1"){
         error_code_ = 400;
         return -1;
     }
