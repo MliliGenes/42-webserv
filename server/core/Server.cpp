@@ -13,6 +13,19 @@
 
 #define FILE_CHUNK 16*1024
 
+// ── ANSI colours (won't hurt if the terminal ignores them) ──────────────────
+#define CLR_RESET  "\033[0m"
+#define CLR_CYAN   "\033[36m"
+#define CLR_GREEN  "\033[32m"
+#define CLR_YELLOW "\033[33m"
+#define CLR_RED    "\033[31m"
+#define CLR_GRAY   "\033[90m"
+
+// ── Tiny log helper ─────────────────────────────────────────────────────────
+static void log(const char* tag, const std::string& msg) {
+    std::cout << tag << "  " << msg << CLR_RESET << "\n";
+}
+
 Server::Server(const Config& cfg) : _configs(cfg.servers()), _res_b(session) {
 }
 
@@ -111,7 +124,6 @@ void Server::_setup_listeners() {
         addr.sin_family = AF_INET;
         addr.sin_port   = htons(srv.port);
 
-        // your host field is a string like "127.0.0.1" or "0.0.0.0"
         if (srv.host == "0.0.0.0" || srv.host.empty())
             addr.sin_addr.s_addr = INADDR_ANY;
         else
@@ -125,9 +137,13 @@ void Server::_setup_listeners() {
         _listeners[fd] = i;
         _add_fd(fd, POLLIN);
 
-        std::cout << "listening on http://" << srv.host << ":" << srv.port << "  fd:" << fd << std::endl;
+        std::ostringstream msg;
+        msg << "Listening  http://" << srv.host << ":" << srv.port
+            << "  fd=" << fd;
+        log(CLR_CYAN "[LISTEN]" , msg.str());
     }
 }
+
 void Server::_close_file(Client* c) {
     if (c->res_file.is_open()) {
         c->res_file.close();
@@ -148,21 +164,29 @@ void Server::_handle_accept(int listener_fd) {
     c->req_parser.setMaxBodySize(_configs[c->server_block_index].clientMaxBodySize);
     _clients[cfd] = c;
     _add_fd(cfd, POLLIN);
-    std::cout << "accepted  fd:" << cfd << std::endl;
+
+    std::ostringstream msg;
+    msg << "New connection  fd=" << cfd
+        << "  total=" << _clients.size();
+    log(CLR_GREEN "[ACCEPT] ", msg.str());
 }
 
 void Server::_close_client(size_t i) {
     int fd = _pollfds[i].fd;
-    std::cout << "closing  fd:" << fd << std::endl;
+
+    std::ostringstream msg;
+    msg << "Connection closed  fd=" << fd;
+    log(CLR_GRAY "[CLOSE]  ", msg.str());
+
     if (_clients.count(fd))
         _cleanup_cgi(_clients[fd]);
     close(fd);
-	delete _clients[fd];
+    delete _clients[fd];
     _clients.erase(fd);
     _pollfds[i] = _pollfds.back();
     _pollfds.pop_back();
 }
-// put this helper above _handle_read
+
 bool request_complete(const std::string& buf) {
     size_t header_end = buf.find("\r\n\r\n");
     if (header_end == std::string::npos) return false;
@@ -177,7 +201,7 @@ bool request_complete(const std::string& buf) {
 
 bool Server::_handle_read(size_t i) {
     int fd = _pollfds[i].fd;
-	Client* c = _clients[fd];
+    Client* c = _clients[fd];
     if (c->cgi.active)
         return false;
 
@@ -191,24 +215,40 @@ bool Server::_handle_read(size_t i) {
     if (status == RequestParser::Incomplete) return false;
 
     if (status == RequestParser::Error) {
-		c->res = _res_b.buildError(c->req_parser.getErrorCode(), _configs[c->server_block_index]);} else {
-		c->req = c->req_parser.getRequest();
-        c->keep_alive = !(c->req.headers.count("connection") && 
+        std::ostringstream msg;
+        msg << "Parse error  fd=" << fd
+            << "  code=" << c->req_parser.getErrorCode();
+        log(CLR_RED "[ERROR]  ", msg.str());
+
+        c->res = _res_b.buildError(c->req_parser.getErrorCode(), _configs[c->server_block_index]);
+    } else {
+        c->req = c->req_parser.getRequest();
+        c->keep_alive = !(c->req.headers.count("connection") &&
                 c->req.headers.at("connection") == "close");
+
+        // ── Request log ────────────────────────────────────────────────────
+        {
+            std::ostringstream msg;
+            msg << "fd=" << fd
+                << "  " << c->req.method
+                << "  " << c->req.path;
+            log(CLR_CYAN "[REQ]    ", msg.str());
+        }
 
         CgiRequest cgireq;
         bool is_cgi = false;
         c->res = _res_b.dispatch(c->req, _configs[c->server_block_index], _cgi, &cgireq, &is_cgi);
-        if (is_cgi)
-        {
+
+        if (is_cgi) {
             std::string err;
             CgiProcess proc;
-            if (!_cgi.spawn(cgireq, proc, err))
-            {
+            if (!_cgi.spawn(cgireq, proc, err)) {
+                log(CLR_RED "[CGI]    ", "Spawn failed  fd=" + std::to_string(fd) + "  " + err);
+
                 c->res = _res_b.buildError(500, _configs[c->server_block_index]);
                 _res_b.applySessionCookieIfNeeded(c->req, c->res);
-         	    c->res.headers["Connection"] = c->keep_alive ? "keep-alive" : "close";
-    		    if (!c->res.headers.count("Content-Length")) {
+                c->res.headers["Connection"] = c->keep_alive ? "keep-alive" : "close";
+                if (!c->res.headers.count("Content-Length")) {
                     std::ostringstream len;
                     len << c->res.body.size();
                     c->res.headers["Content-Length"] = len.str();
@@ -217,6 +257,16 @@ bool Server::_handle_read(size_t i) {
                 _pollfds[i].events = POLLOUT;
                 return false;
             }
+
+            // ── CGI spawned ──────────────────────────────────────────────
+            {
+                std::ostringstream msg;
+                msg << "Spawned  fd=" << fd
+                    << "  pid=" << proc.pid
+                    << "  script=" << cgireq.script_path;
+                log(CLR_YELLOW "[CGI]    ", msg.str());
+            }
+
             c->cgi.active = true;
             c->cgi.pid = proc.pid;
             c->cgi.in_fd = proc.in_fd;
@@ -239,6 +289,14 @@ bool Server::_handle_read(size_t i) {
         }
     }
 
+    // ── Response log ───────────────────────────────────────────────────────
+    {
+        std::ostringstream msg;
+        msg << "fd=" << fd
+            << "  status=" << c->res.status_code;
+        log(CLR_GREEN "[RES]    ", msg.str());
+    }
+
     c->res.headers["Connection"] = c->keep_alive ? "keep-alive" : "close";
     if (!c->res.headers.count("Content-Length")) {
         std::ostringstream len;
@@ -249,12 +307,20 @@ bool Server::_handle_read(size_t i) {
     if (!c->res.body_path.empty()) {
         c->res_file.open(c->res.body_path.c_str(), std::ios::binary);
         if (!c->res_file.is_open()) {
+            log(CLR_RED "[ERROR]  ", "Cannot open file: " + c->res.body_path);
             c->res = _res_b.buildError(404, _configs[c->server_block_index]);
             c->res_buf = c->res.build();
         } else {
             c->res_file.seekg(0, std::ios::end);
             c->res_file_remaining = c->res_file.tellg();
             c->res_file.seekg(0, std::ios::beg);
+
+            std::ostringstream msg;
+            msg << "Serving file  fd=" << fd
+                << "  path=" << c->res.body_path
+                << "  size=" << c->res_file_remaining;
+            log(CLR_GRAY "[FILE]   ", msg.str());
+
             c->res_buf = c->res.build_headers();
         }
     } else {
@@ -264,7 +330,6 @@ bool Server::_handle_read(size_t i) {
     return false;
 }
 
-// TODO: change this bullshit to the new logic
 bool Server::_handle_write(size_t i) {
     int fd = _pollfds[i].fd;
     Client* c = _clients[fd];
@@ -280,7 +345,6 @@ bool Server::_handle_write(size_t i) {
         c->last_active = time(NULL);
         if (!c->res_buf.empty()) return false;
     }
-
 
     if (c->res_file.is_open()) {
         if (c->res_file_remaining > 0) {
@@ -342,8 +406,7 @@ void Server::_handle_cgi_event(size_t i) {
         return;
     }
 
-    if (it->second.is_stdin)
-    {
+    if (it->second.is_stdin) {
         if (c->cgi.body_sent >= c->cgi.req.body.size()) {
             _cgi_fds.erase(it);
             _invalidate_pollfd_by_fd(fd);
@@ -361,11 +424,8 @@ void Server::_handle_cgi_event(size_t i) {
             _cgi_fds.erase(it);
             _invalidate_pollfd_by_fd(fd);
             safe_close(c->cgi.in_fd);
-            return;
         }
-    }
-    else
-    {
+    } else {
         char buf[4096];
         ssize_t r = ::read(fd, buf, sizeof(buf));
         if (r > 0) {
@@ -376,7 +436,6 @@ void Server::_handle_cgi_event(size_t i) {
         _cgi_fds.erase(it);
         _invalidate_pollfd_by_fd(fd);
         safe_close(c->cgi.out_fd);
-        return;
     }
 }
 
@@ -384,6 +443,10 @@ void Server::_cleanup_cgi(Client* c) {
     if (c->cgi.pid > 0) {
         ::kill(c->cgi.pid, SIGKILL);
         ::waitpid(c->cgi.pid, NULL, WNOHANG);
+
+        std::ostringstream msg;
+        msg << "Killed  pid=" << c->cgi.pid << "  client_fd=" << c->fd;
+        log(CLR_YELLOW "[CGI]    ", msg.str());
     }
     if (c->cgi.in_fd >= 0) {
         _cgi_fds.erase(c->cgi.in_fd);
@@ -410,10 +473,17 @@ void Server::_finalize_cgi(Client* c, const ServerConfig& cfg) {
     if (ok) {
         CgiResponse cgires;
         std::string err;
-        if (!_cgi.parseOutput(c->cgi.raw, cgires, err))
+        if (!_cgi.parseOutput(c->cgi.raw, cgires, err)) {
+            log(CLR_RED "[CGI]    ", "Parse error  fd=" + std::to_string(c->fd) + "  " + err);
             ok = false;
-        else
+        } else {
+            std::ostringstream msg;
+            msg << "Done  pid=" << c->cgi.pid
+                << "  fd=" << c->fd
+                << "  bytes=" << c->cgi.raw.size();
+            log(CLR_GREEN "[CGI]    ", msg.str());
             c->res = _res_b.buildFromCgi(cgires);
+        }
     }
 
     if (!ok)
@@ -442,6 +512,10 @@ void Server::_check_cgi_jobs() {
             continue;
 
         if (c->cgi.timeout_sec > 0 && (now - c->cgi.start) > c->cgi.timeout_sec) {
+            std::ostringstream msg;
+            msg << "Timeout  pid=" << c->cgi.pid << "  fd=" << c->fd;
+            log(CLR_RED "[CGI]    ", msg.str());
+
             _cleanup_cgi(c);
             c->res = _res_b.buildError(500, _configs[c->server_block_index]);
             _res_b.applySessionCookieIfNeeded(c->req, c->res);
@@ -475,7 +549,9 @@ void Server::_check_timeouts() {
         std::map<int, Client*>::iterator it = _clients.find(fd);
         if (it == _clients.end()) { i++; continue; }
         if (now - it->second->last_active > 30) {
-            std::cout << "timeout  fd:" << fd << std::endl;
+            std::ostringstream msg;
+            msg << "Idle timeout  fd=" << fd;
+            log(CLR_YELLOW "[TIMEOUT]", msg.str());
             _close_client(i);
         } else {
             i++;
@@ -487,10 +563,13 @@ void Server::run() {
     signal(SIGPIPE, SIG_IGN);
     _setup_listeners();
 
+    log(CLR_CYAN "[SERVER] ", "Running — waiting for connections...");
+
     while (true) {
         int n = poll(&_pollfds[0], _pollfds.size(), 100);
         if (n < 0) {
             if (errno == EINTR) continue;
+            log(CLR_RED "[SERVER] ", "poll() error — shutting down");
             break;
         }
 
@@ -520,18 +599,18 @@ void Server::run() {
             }
 
             if (_pollfds[i].revents & (POLLHUP | POLLERR)) {
+                log(CLR_GRAY "[POLL]   ", "HUP/ERR  fd=" + std::to_string(fd));
                 _close_client(i--); sz--;
                 continue;
             }
 
-            if (_pollfds[i].revents & POLLIN)
-            {   
-                 if (_handle_read(i))  { i--; sz--; continue; }
+            if (_pollfds[i].revents & POLLIN) {
+                if (_handle_read(i)) { i--; sz--; continue; }
             }
 
             if (_clients.count(fd) && i < _pollfds.size() && _pollfds[i].fd == fd) {
                 if (_pollfds[i].revents & POLLOUT) {
-                    if (_handle_write(i))  { i--; sz--; continue; }
+                    if (_handle_write(i)) { i--; sz--; continue; }
                 }
             }
         }

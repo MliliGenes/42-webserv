@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebServer — Architecture Roadmap</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #0e1117;
+    --bg3: #141920;
+    --border: #1e2530;
+    --border2: #2a3344;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #7fff6e;
+    --accent4: #ffcc02;
+    --text: #c8d4e0;
+    --text-dim: #5a6a7e;
+    --text-bright: #eaf2ff;
+    --red: #ff4757;
+    --purple: #a855f7;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* scanline overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 2.5rem 3rem 2rem;
+    position: relative;
+    background: linear-gradient(135deg, #0a0c0f 60%, #0d1520 100%);
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+  .header-tag {
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .header-tag::before { content: '//'; color: var(--text-dim); }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    color: var(--text-bright);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+  h1 span { color: var(--accent); }
+  .header-sub {
+    margin-top: 0.75rem;
+    color: var(--text-dim);
+    font-size: 12px;
+    letter-spacing: 0.05em;
+  }
+  .header-badges {
+    display: flex; gap: 0.75rem; margin-top: 1.25rem; flex-wrap: wrap;
+  }
+  .badge {
+    padding: 0.2rem 0.7rem;
+    border: 1px solid var(--border2);
+    border-radius: 2px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .badge.green { border-color: var(--accent3); color: var(--accent3); }
+  .badge.orange { border-color: var(--accent2); color: var(--accent2); }
+  .badge.blue { border-color: var(--accent); color: var(--accent); }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1300px; margin: 0 auto; padding: 3rem 3rem; }
+
+  /* ── PHASE TIMELINE ── */
+  .phase-line {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 3.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+  .phase-node {
+    display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+    min-width: 110px; cursor: default;
+    animation: fadeUp 0.4s ease both;
+  }
+  .phase-node:nth-child(2n) { animation-delay: 0.05s; }
+  .phase-node:nth-child(3n) { animation-delay: 0.1s; }
+  .phase-dot {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 13px;
+    border: 2px solid;
+    position: relative; z-index: 1;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .phase-dot:hover { transform: scale(1.15); }
+  .phase-connector {
+    height: 2px; flex: 1; min-width: 30px;
+    background: linear-gradient(90deg, var(--border2), transparent);
+    margin-top: -28px;
+    align-self: flex-start;
+  }
+  .phase-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); text-align: center; }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 4rem; animation: fadeUp 0.5s ease both; }
+  .section-header {
+    display: flex; align-items: baseline; gap: 1rem;
+    margin-bottom: 1.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .section-header::after {
+    content: '';
+    position: absolute; bottom: -1px; left: 0;
+    height: 1px; width: 80px;
+  }
+  .section-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.15em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-bright);
+    letter-spacing: -0.01em;
+  }
+  .section-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-left: auto;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── CARD GRID ── */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.25rem; }
+
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.25s, transform 0.2s;
+  }
+  .card:hover { transform: translateY(-2px); }
+  .card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .card.blue::before { background: var(--accent); }
+  .card.orange::before { background: var(--accent2); }
+  .card.green::before { background: var(--accent3); }
+  .card.yellow::before { background: var(--accent4); }
+  .card.red::before { background: var(--red); }
+  .card.purple::before { background: var(--purple); }
+  .card:hover { border-color: var(--border2); }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 14px;
+    color: var(--text-bright);
+    margin-bottom: 0.25rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .card-title .icon { font-size: 16px; }
+  .card-desc { font-size: 11px; color: var(--text-dim); margin-bottom: 1rem; }
+
+  /* ── SYSCALL BLOCKS ── */
+  .syscall-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .syscall {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.6rem 0.9rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0 0.75rem;
+  }
+  .syscall-name {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 12px;
+    white-space: nowrap;
+    align-self: start;
+    padding-top: 1px;
+  }
+  .syscall-name.orange { color: var(--accent2); }
+  .syscall-name.green { color: var(--accent3); }
+  .syscall-name.yellow { color: var(--accent4); }
+  .syscall-name.red { color: var(--red); }
+  .syscall-name.purple { color: var(--purple); }
+  .syscall-detail { font-size: 11px; color: var(--text); }
+  .syscall-detail .flag {
+    color: var(--accent4);
+    font-weight: 500;
+  }
+  .syscall-detail .val {
+    color: var(--accent3);
+    font-weight: 500;
+  }
+  .syscall-detail .comment {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* ── CODE SNIPPET ── */
+  .code-block {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1rem 1.2rem;
+    margin-top: 0.75rem;
+    font-size: 11.5px;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+  .code-block .kw { color: var(--purple); }
+  .code-block .fn { color: var(--accent); }
+  .code-block .str { color: var(--accent3); }
+  .code-block .cm { color: var(--text-dim); font-style: italic; }
+  .code-block .num { color: var(--accent4); }
+  .code-block .type { color: var(--accent2); }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step {
+    display: flex; gap: 1.25rem;
+    padding: 1rem 0;
+    border-left: 2px solid var(--border2);
+    padding-left: 1.5rem;
+    position: relative;
+  }
+  .flow-step::before {
+    content: '';
+    position: absolute; left: -5px; top: 1.25rem;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--bg2);
+    border: 2px solid var(--accent);
+  }
+  .flow-step.orange::before { border-color: var(--accent2); }
+  .flow-step.green::before { border-color: var(--accent3); }
+  .flow-step.yellow::before { border-color: var(--accent4); }
+  .flow-step.red::before { border-color: var(--red); }
+  .flow-step.purple::before { border-color: var(--purple); }
+  .flow-step:last-child { border-left-color: transparent; }
+  .flow-left {
+    min-width: 130px;
+  }
+  .flow-fn {
+    font-weight: 700; font-size: 12px;
+    color: var(--text-bright);
+  }
+  .flow-tag {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .flow-right { flex: 1; }
+  .flow-note { font-size: 11px; color: var(--text-dim); margin-bottom: 0.4rem; }
+  .flow-flags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
+  .flag-pill {
+    font-size: 10px;
+    padding: 0.15rem 0.5rem;
+    border-radius: 2px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--accent4);
+    letter-spacing: 0.05em;
+  }
+  .flag-pill.blue { color: var(--accent); border-color: rgba(0,229,255,0.2); }
+  .flag-pill.green { color: var(--accent3); border-color: rgba(127,255,110,0.2); }
+  .flag-pill.red { color: var(--red); border-color: rgba(255,71,87,0.2); }
+  .flag-pill.purple { color: var(--purple); border-color: rgba(168,85,247,0.2); }
+
+  /* ── FD TABLE ── */
+  .fd-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .fd-table th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border2);
+    color: var(--text-dim);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: var(--bg3);
+    font-weight: 400;
+  }
+  .fd-table td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: top;
+  }
+  .fd-table tr:last-child td { border-bottom: none; }
+  .fd-table td:first-child { color: var(--accent); font-weight: 700; white-space: nowrap; }
+
+  /* ── POLL EVENT TABLE ── */
+  .event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; }
+  .event-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.9rem 1rem;
+  }
+  .event-name { font-weight: 700; font-size: 12px; margin-bottom: 0.25rem; }
+  .event-desc { font-size: 10.5px; color: var(--text-dim); }
+  .event-action { font-size: 10.5px; color: var(--accent3); margin-top: 0.3rem; }
+
+  /* ── STATE MACHINE ── */
+  .state-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.5rem; }
+  .state-box {
+    padding: 0.35rem 0.9rem;
+    border-radius: 3px;
+    font-size: 11px; font-weight: 700;
+    border: 1px solid;
+    letter-spacing: 0.05em;
+  }
+  .state-arrow { color: var(--text-dim); font-size: 14px; }
+  .state-condition { font-size: 10px; color: var(--text-dim); align-self: center; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem 3rem;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em;
+  }
+  footer span { color: var(--accent); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .full-card { grid-column: 1 / -1; }
+
+  .inline-note {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--text-dim);
+    border: 1px solid var(--border2);
+    padding: 0.15rem 0.5rem;
+    border-radius: 2px;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-tag">WebServer Architecture</div>
+  <h1>Server<span>.</span>cpp<br>Roadmap</h1>
+  <div class="header-sub">// poll-based non-blocking I/O · CGI · keep-alive · file streaming</div>
+  <div class="header-badges">
+    <div class="badge blue">C++98</div>
+    <div class="badge green">Non-blocking I/O</div>
+    <div class="badge orange">poll()</div>
+    <div class="badge">CGI</div>
+    <div class="badge">HTTP/1.1</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- PHASE TIMELINE -->
+  <div class="phase-line">
+    <div class="phase-node">
+      <div class="phase-dot" style="border-color:var(--accent);color:var(--accent)">1</div>
+      <div class="phase-label">Socket<br>Create</div>
+    </div>
+    <div class="phase-connector"></div>
+    <div class="phase-node">
+      <div class="phase-dot" style="border-color:var(--accent2);color:var(--accent2)">2</div>
+      <div class="phase-label">Bind &amp;<br>Listen</div>
+    </div>
+    <div class="phase-connector"></div>
+    <div class="phase-node">
+      <div class="phase-dot" style="border-color:var(--accent3);color:var(--accent3)">3</div>
+      <div class="phase-label">Poll<br>Loop</div>
+    </div>
+    <div class="phase-connector"></div>
+    <div class="phase-node">
+      <div class="phase-dot" style="border-color:var(--accent4);color:var(--accent4)">4</div>
+      <div class="phase-label">Accept<br>Client</div>
+    </div>
+    <div class="phase-connector"></div>
+    <div class="phase-node">
+      <div class="phase-dot" style="border-color:var(--purple);color:var(--purple)">5</div>
+      <div class="phase-label">Read<br>Request</div>
+    </div>
+    <div class="phase-connector"></div>
+    <div class="phase-node">
+      <div class="phase-dot" style="border-color:var(--red);color:var(--red)">6</div>
+      <div class="phase-label">Build<br>Response</div>
+    </div>
+    <div class="phase-connector"></div>
+    <div class="phase-node">
+      <div class="phase-dot" style="border-color:#ff9f43;color:#ff9f43">7</div>
+      <div class="phase-label">Write<br>&amp; Drain</div>
+    </div>
+    <div class="phase-connector"></div>
+    <div class="phase-node">
+      <div class="phase-dot" style="border-color:#48dbfb;color:#48dbfb">8</div>
+      <div class="phase-label">CGI<br>Pipes</div>
+    </div>
+    <div class="phase-connector"></div>
+    <div class="phase-node">
+      <div class="phase-dot" style="border-color:#ff6b81;color:#ff6b81">9</div>
+      <div class="phase-label">Cleanup<br>&amp; Timeout</div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 1: SOCKET CREATION ── -->
+  <div class="section">
+    <div class="section-header" style="--c:var(--accent)">
+      <div class="section-num" style="background:rgba(0,229,255,0.08);color:var(--accent);border:1px solid rgba(0,229,255,0.2)">[01]</div>
+      <div class="section-title">Listening Socket Creation</div>
+      <div class="section-desc">_setup_listeners()</div>
+    </div>
+    <div class="card-grid">
+      <div class="card blue">
+        <div class="card-title"><span class="icon">⚙</span> socket()</div>
+        <div class="card-desc">Creates the raw TCP socket file descriptor</div>
+        <div class="syscall-list">
+          <div class="syscall">
+            <div class="syscall-name">socket()</div>
+            <div class="syscall-detail">
+              <span class="flag">AF_INET</span> — IPv4 address family<br>
+              <span class="flag">SOCK_STREAM</span> — reliable TCP byte stream<br>
+              <span class="flag">0</span> — auto-select TCP protocol<br>
+              <span class="comment">→ returns fd, or -1 on error</span>
+            </div>
+          </div>
+        </div>
+        <div class="code-block">
+<span class="type">int</span> fd = <span class="fn">socket</span>(<span class="flag" style="color:var(--accent)">AF_INET</span>, <span class="flag" style="color:var(--accent)">SOCK_STREAM</span>, <span class="num">0</span>);<br>
+<span class="kw">if</span> (fd &lt; <span class="num">0</span>) <span class="kw">throw</span> <span class="fn">runtime_error</span>(<span class="str">"socket() failed"</span>);
+        </div>
+      </div>
+
+      <div class="card orange">
+        <div class="card-title"><span class="icon">🔧</span> setsockopt()</div>
+        <div class="card-desc">Avoids "Address already in use" on restart</div>
+        <div class="syscall-list">
+          <div class="syscall">
+            <div class="syscall-name orange">setsockopt()</div>
+            <div class="syscall-detail">
+              <span class="flag">SOL_SOCKET</span> — socket-level option<br>
+              <span class="flag">SO_REUSEADDR</span> — reuse TIME_WAIT port immediately<br>
+              <span class="val">opt=1</span> — enable the option<br>
+              <span class="comment">→ critical for server restarts</span>
+            </div>
+          </div>
+        </div>
+        <div class="code-block">
+<span class="type">int</span> opt = <span class="num">1</span>;<br>
+<span class="fn">setsockopt</span>(fd, <span class="flag" style="color:var(--accent2)">SOL_SOCKET</span>, <span class="flag" style="color:var(--accent2)">SO_REUSEADDR</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;opt, <span class="kw">sizeof</span>(opt));
+        </div>
+      </div>
+
+      <div class="card green">
+        <div class="card-title"><span class="icon">⚡</span> fcntl() — Non-blocking</div>
+        <div class="card-desc">Makes the fd non-blocking so poll() never hangs</div>
+        <div class="syscall-list">
+          <div class="syscall">
+            <div class="syscall-name green">F_GETFL</div>
+            <div class="syscall-detail"><span class="comment">read current file-status flags</span></div>
+          </div>
+          <div class="syscall">
+            <div class="syscall-name green">F_SETFL</div>
+            <div class="syscall-detail">
+              <span class="flag">O_NONBLOCK</span> — OR in non-blocking flag<br>
+              <span class="comment">→ recv/send return EAGAIN instead of blocking</span>
+            </div>
+          </div>
+        </div>
+        <div class="code-block">
+<span class="fn">fcntl</span>(fd, <span class="flag" style="color:var(--accent3)">F_SETFL</span>,<br>
+&nbsp;&nbsp;<span class="fn">fcntl</span>(fd, <span class="flag" style="color:var(--accent3)">F_GETFL</span>, <span class="num">0</span>) | <span class="flag" style="color:var(--accent3)">O_NONBLOCK</span>);
+        </div>
+      </div>
+
+      <div class="card yellow">
+        <div class="card-title"><span class="icon">📌</span> bind() &amp; listen()</div>
+        <div class="card-desc">Assigns the address and activates the kernel accept queue</div>
+        <div class="syscall-list">
+          <div class="syscall">
+            <div class="syscall-name yellow">sockaddr_in</div>
+            <div class="syscall-detail">
+              <span class="flag">sin_family</span> = AF_INET<br>
+              <span class="flag">sin_port</span> = <span class="fn">htons</span>(port) <span class="comment">host-to-network-short</span><br>
+              <span class="flag">sin_addr</span> = INADDR_ANY <span class="comment">or inet_addr()</span>
+            </div>
+          </div>
+          <div class="syscall">
+            <div class="syscall-name yellow">listen()</div>
+            <div class="syscall-detail">
+              backlog = <span class="val">128</span> — max pending connections<br>
+              <span class="comment">kernel queues SYN packets until accept()</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 2: POLL LOOP ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num" style="background:rgba(127,255,110,0.08);color:var(--accent3);border:1px solid rgba(127,255,110,0.2)">[02]</div>
+      <div class="section-title">The Poll Loop</div>
+      <div class="section-desc">run() — main event loop</div>
+    </div>
+    <div class="card-grid">
+      <div class="card green full-card">
+        <div class="card-title"><span class="icon">🔄</span> poll() — Multiplexed I/O</div>
+        <div class="card-desc">Single thread watching all fds simultaneously. Timeout = 100ms to run housekeeping.</div>
+        <div class="code-block">
+<span class="type">int</span> n = <span class="fn">poll</span>(&amp;_pollfds[<span class="num">0</span>], _pollfds.size(), <span class="num">100</span>);<br>
+<span class="cm">// n == 0  → timeout, run _check_timeouts / _compact_pollfds</span><br>
+<span class="cm">// n  > 0  → iterate pollfds, check .revents</span><br>
+<span class="cm">// n  < 0  → error (EINTR from signal → continue)</span>
+        </div>
+        <div style="margin-top:1.25rem">
+          <div class="event-grid">
+            <div class="event-card">
+              <div class="event-name" style="color:var(--accent)">POLLIN</div>
+              <div class="event-desc">Data is ready to read from this fd without blocking</div>
+              <div class="event-action">→ call recv() / accept() / read()</div>
+            </div>
+            <div class="event-card">
+              <div class="event-name" style="color:var(--accent2)">POLLOUT</div>
+              <div class="event-desc">Write buffer has space — send() won't block</div>
+              <div class="event-action">→ call send() / write()</div>
+            </div>
+            <div class="event-card">
+              <div class="event-name" style="color:var(--red)">POLLHUP</div>
+              <div class="event-desc">Remote side closed/hung up the connection</div>
+              <div class="event-action">→ _close_client()</div>
+            </div>
+            <div class="event-card">
+              <div class="event-name" style="color:var(--red)">POLLERR</div>
+              <div class="event-desc">Error condition on the fd (pipe broken, etc.)</div>
+              <div class="event-action">→ _close_client()</div>
+            </div>
+            <div class="event-card">
+              <div class="event-name" style="color:var(--purple)">POLLHUP on CGI pipe</div>
+              <div class="event-desc">CGI process closed its write end — all output is done</div>
+              <div class="event-action">→ _handle_cgi_event() drains last bytes</div>
+            </div>
+            <div class="event-card">
+              <div class="event-name" style="color:var(--text-dim)">fd = -1</div>
+              <div class="event-desc">Slot is invalidated (closed fd). poll() skips it.</div>
+              <div class="event-action">→ _compact_pollfds() removes it</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card blue full-card">
+        <div class="card-title"><span class="icon">🗂</span> FD Registry — Three Maps</div>
+        <div class="card-desc">Every fd belongs to exactly one category. The loop checks maps to route events correctly.</div>
+        <table class="fd-table">
+          <thead>
+            <tr>
+              <th>Map</th>
+              <th>Key</th>
+              <th>Value</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>_listeners</td>
+              <td>socket fd</td>
+              <td>ServerConfig index</td>
+              <td>Passive sockets waiting for connections. On POLLIN → accept(). Knows which virtual host config owns the fd.</td>
+            </tr>
+            <tr>
+              <td>_clients</td>
+              <td>client fd</td>
+              <td>Client* (heap)</td>
+              <td>Active client connections. Holds parser state, response buffer, file stream, CGI job. Cleaned up on disconnect.</td>
+            </tr>
+            <tr>
+              <td>_cgi_fds</td>
+              <td>pipe fd</td>
+              <td>CgiFdInfo {client_fd, is_stdin}</td>
+              <td>stdin/stdout pipes to child CGI process. Routes data back to the owning client. Removed once pipe is drained/closed.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 3: ACCEPTING CLIENTS ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num" style="background:rgba(255,204,2,0.08);color:var(--accent4);border:1px solid rgba(255,204,2,0.2)">[03]</div>
+      <div class="section-title">Accepting New Clients</div>
+      <div class="section-desc">_handle_accept()</div>
+    </div>
+    <div class="card-grid">
+      <div class="card yellow">
+        <div class="card-title"><span class="icon">🤝</span> accept()</div>
+        <div class="card-desc">Dequeues one pending connection from the kernel's backlog</div>
+        <div class="syscall-list">
+          <div class="syscall">
+            <div class="syscall-name yellow">accept()</div>
+            <div class="syscall-detail">
+              <span class="flag">listener_fd</span> — the passive socket<br>
+              <span class="val">NULL, NULL</span> — don't need client address here<br>
+              <span class="comment">→ returns NEW connected fd (cfd)</span><br>
+              <span class="comment">→ EAGAIN = no more pending connections</span>
+            </div>
+          </div>
+        </div>
+        <div class="code-block">
+<span class="type">int</span> cfd = <span class="fn">accept</span>(listener_fd, NULL, NULL);<br>
+<span class="kw">if</span> (cfd &lt; <span class="num">0</span>) <span class="kw">return</span>; <span class="cm">// EAGAIN</span><br>
+<span class="fn">set_nonblocking</span>(cfd);<br><br>
+<span class="type">Client</span>* c = <span class="kw">new</span> <span class="type">Client</span>();<br>
+c-&gt;server_block_index = _listeners[listener_fd];<br>
+_clients[cfd] = c;<br>
+<span class="fn">_add_fd</span>(cfd, POLLIN); <span class="cm">// watch for request data</span>
+        </div>
+      </div>
+      <div class="card orange">
+        <div class="card-title"><span class="icon">📋</span> Client Lifecycle State</div>
+        <div class="card-desc">Each Client struct carries all state for one connection</div>
+        <div class="flow">
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-fn">POLLIN</div><div class="flow-tag" style="color:var(--accent)">watching</div></div>
+            <div class="flow-right"><div class="flow-note">Waiting for HTTP request bytes from client</div></div>
+          </div>
+          <div class="flow-step orange">
+            <div class="flow-left"><div class="flow-fn">parsing</div><div class="flow-tag" style="color:var(--accent2)">req_parser</div></div>
+            <div class="flow-right"><div class="flow-note">RequestParser accumulates bytes until Complete or Error</div></div>
+          </div>
+          <div class="flow-step green">
+            <div class="flow-left"><div class="flow-fn">POLLOUT</div><div class="flow-tag" style="color:var(--accent3)">sending</div></div>
+            <div class="flow-right"><div class="flow-note">res_buf draining to socket. File streaming via res_file.</div></div>
+          </div>
+          <div class="flow-step yellow">
+            <div class="flow-left"><div class="flow-fn">keep-alive</div><div class="flow-tag" style="color:var(--accent4)">reset</div></div>
+            <div class="flow-right"><div class="flow-note">Parser resets, events back to POLLIN. Connection reused.</div></div>
+          </div>
+          <div class="flow-step red">
+            <div class="flow-left"><div class="flow-fn">close()</div><div class="flow-tag" style="color:var(--red)">cleanup</div></div>
+            <div class="flow-right"><div class="flow-note">Connection header "close", timeout, or error → delete Client, close fd</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 4: READ / WRITE ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num" style="background:rgba(168,85,247,0.08);color:var(--purple);border:1px solid rgba(168,85,247,0.2)">[04]</div>
+      <div class="section-title">Reading Requests &amp; Writing Responses</div>
+      <div class="section-desc">_handle_read() · _handle_write()</div>
+    </div>
+    <div class="card-grid">
+      <div class="card purple">
+        <div class="card-title"><span class="icon">📥</span> recv() — Reading</div>
+        <div class="card-desc">Non-blocking read into RequestParser feed loop</div>
+        <div class="syscall-list">
+          <div class="syscall">
+            <div class="syscall-name purple">recv()</div>
+            <div class="syscall-detail">
+              buf = stack <span class="val">char[4096]</span>, flags = <span class="val">0</span><br>
+              <span class="flag">n &lt; 0 &amp;&amp; EAGAIN</span> — no data yet, return false<br>
+              <span class="flag">n &lt;= 0</span> — client disconnected → _close_client<br>
+              <span class="flag">n &gt; 0</span> — feed bytes to req_parser
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:0.75rem">
+          <div class="state-row">
+            <div class="state-box" style="border-color:var(--purple);color:var(--purple)">Incomplete</div>
+            <div class="state-arrow">→</div>
+            <div class="state-condition">return false, wait for more POLLIN</div>
+          </div>
+          <div class="state-row">
+            <div class="state-box" style="border-color:var(--accent3);color:var(--accent3)">Complete</div>
+            <div class="state-arrow">→</div>
+            <div class="state-condition">dispatch() → build response → POLLOUT</div>
+          </div>
+          <div class="state-row">
+            <div class="state-box" style="border-color:var(--red);color:var(--red)">Error</div>
+            <div class="state-arrow">→</div>
+            <div class="state-condition">buildError(code) → POLLOUT</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card blue">
+        <div class="card-title"><span class="icon">📤</span> send() — Writing</div>
+        <div class="card-desc">Drains res_buf then streams file if body is large</div>
+        <div class="syscall-list">
+          <div class="syscall">
+            <div class="syscall-name">send()</div>
+            <div class="syscall-detail">
+              <span class="flag">EAGAIN</span> — kernel buffer full, retry on next POLLOUT<br>
+              <span class="val">n &lt; size</span> — partial send, erase sent bytes from buf<br>
+              <span class="comment">→ loop until res_buf.empty()</span>
+            </div>
+          </div>
+        </div>
+        <div class="code-block">
+<span class="cm">// Partial send handling:</span><br>
+<span class="type">int</span> n = <span class="fn">send</span>(fd, c-&gt;res_buf.<span class="fn">c_str</span>(),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;c-&gt;res_buf.<span class="fn">size</span>(), <span class="num">0</span>);<br>
+c-&gt;res_buf.<span class="fn">erase</span>(<span class="num">0</span>, n); <span class="cm">// remove sent bytes</span>
+        </div>
+        <div style="margin-top:0.75rem; font-size:11px; color:var(--text-dim)">
+          After headers drained → open <span style="color:var(--accent3)">res_file</span>, stream in
+          <span style="color:var(--accent4)">16KB</span> chunks via <span style="color:var(--accent)">seekg()</span> for partial sends
+        </div>
+      </div>
+
+      <div class="card green">
+        <div class="card-title"><span class="icon">🔁</span> Keep-Alive Reset</div>
+        <div class="card-desc">After response is fully drained, reuse the connection</div>
+        <div class="syscall-list">
+          <div class="syscall">
+            <div class="syscall-name green">reset logic</div>
+            <div class="syscall-detail">
+              check <span class="flag">Connection: keep-alive</span> header<br>
+              call <span class="val">req_parser.reset()</span> — clears parse state<br>
+              set events back to <span class="flag">POLLIN</span><br>
+              <span class="comment">else: close() + delete Client*</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 5: CGI ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num" style="background:rgba(255,107,53,0.08);color:var(--accent2);border:1px solid rgba(255,107,53,0.2)">[05]</div>
+      <div class="section-title">CGI — Child Process I/O</div>
+      <div class="section-desc">fork/exec · pipe management · _handle_cgi_event()</div>
+    </div>
+    <div class="card-grid">
+      <div class="card orange full-card">
+        <div class="card-title"><span class="icon">⚗</span> CGI Pipe Architecture</div>
+        <div class="card-desc">Two pipes bridge the HTTP client and the CGI subprocess. Both are non-blocking and tracked in _cgi_fds.</div>
+        <div class="flow">
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-fn">spawn()</div><div class="flow-tag" style="color:var(--accent2)">cgihandler</div></div>
+            <div class="flow-right">
+              <div class="flow-note">fork() + exec(). Creates pipe pair: <code style="color:var(--accent)">in_fd</code> (stdin of child), <code style="color:var(--accent)">out_fd</code> (stdout of child)</div>
+              <div class="flow-flags">
+                <span class="flag-pill">O_NONBLOCK on both ends</span>
+                <span class="flag-pill blue">in_fd → POLLOUT if body exists</span>
+                <span class="flag-pill green">out_fd → POLLIN | POLLHUP</span>
+              </div>
+            </div>
+          </div>
+          <div class="flow-step orange">
+            <div class="flow-left"><div class="flow-fn">write()</div><div class="flow-tag" style="color:var(--accent2)">stdin pipe</div></div>
+            <div class="flow-right">
+              <div class="flow-note">On POLLOUT: write() chunks of request body (4096B) into in_fd. Track body_sent offset. Close in_fd when done (signals EOF to child).</div>
+              <div class="flow-flags">
+                <span class="flag-pill">4096B chunks</span>
+                <span class="flag-pill blue">body_sent += w</span>
+                <span class="flag-pill red">close on complete</span>
+              </div>
+            </div>
+          </div>
+          <div class="flow-step green">
+            <div class="flow-left"><div class="flow-fn">read()</div><div class="flow-tag" style="color:var(--accent3)">stdout pipe</div></div>
+            <div class="flow-right">
+              <div class="flow-note">On POLLIN: read() appends to cgi.raw buffer. On POLLHUP/r≤0: pipe is done, invalidate fd. waitpid() with WNOHANG to reap child.</div>
+              <div class="flow-flags">
+                <span class="flag-pill green">raw.append(buf, r)</span>
+                <span class="flag-pill purple">WNOHANG</span>
+                <span class="flag-pill">parseOutput() on close</span>
+              </div>
+            </div>
+          </div>
+          <div class="flow-step yellow">
+            <div class="flow-left"><div class="flow-fn">finalize</div><div class="flow-tag" style="color:var(--accent4)">_finalize_cgi</div></div>
+            <div class="flow-right">
+              <div class="flow-note">exited==true &amp;&amp; out_fd&lt;0 → parse raw output, build response, set client events = POLLOUT. Check WIFSIGNALED / WEXITSTATUS for errors.</div>
+              <div class="flow-flags">
+                <span class="flag-pill yellow">WIFSIGNALED</span>
+                <span class="flag-pill yellow">WIFEXITED</span>
+                <span class="flag-pill yellow">WEXITSTATUS</span>
+              </div>
+            </div>
+          </div>
+          <div class="flow-step red">
+            <div class="flow-left"><div class="flow-fn">timeout</div><div class="flow-tag" style="color:var(--red)">_cleanup_cgi</div></div>
+            <div class="flow-right">
+              <div class="flow-note">CGI timeout_sec exceeded → SIGKILL child, waitpid WNOHANG, close both pipes, clear _cgi_fds entries, return 500.</div>
+              <div class="flow-flags">
+                <span class="flag-pill red">SIGKILL</span>
+                <span class="flag-pill red">WNOHANG</span>
+                <span class="flag-pill">invalidate pollfds</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 6: FD MANAGEMENT ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num" style="background:rgba(255,71,87,0.08);color:var(--red);border:1px solid rgba(255,71,87,0.2)">[06]</div>
+      <div class="section-title">FD Management &amp; Cleanup</div>
+      <div class="section-desc">invalidate · compact · safe_close · timeouts</div>
+    </div>
+    <div class="card-grid">
+      <div class="card red">
+        <div class="card-title"><span class="icon">🗑</span> Two-Phase FD Removal</div>
+        <div class="card-desc">Never erase from _pollfds while iterating — mark first, sweep later</div>
+        <div class="flow">
+          <div class="flow-step red">
+            <div class="flow-left"><div class="flow-fn">phase 1</div><div class="flow-tag" style="color:var(--red)">invalidate</div></div>
+            <div class="flow-right"><div class="flow-note">Set pollfds[i].fd = -1. poll() ignores negative fds automatically.</div></div>
+          </div>
+          <div class="flow-step orange">
+            <div class="flow-left"><div class="flow-fn">phase 2</div><div class="flow-tag" style="color:var(--accent2)">compact</div></div>
+            <div class="flow-right"><div class="flow-note">Swap-with-back + pop_back on every fd&lt;0 entry. Called after each poll iteration.</div></div>
+          </div>
+        </div>
+        <div class="code-block">
+<span class="cm">// compact: O(n), no allocations</span><br>
+<span class="kw">while</span> (i &lt; _pollfds.<span class="fn">size</span>()) {<br>
+&nbsp;&nbsp;<span class="kw">if</span> (_pollfds[i].fd &lt; <span class="num">0</span>) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;_pollfds[i] = _pollfds.<span class="fn">back</span>();<br>
+&nbsp;&nbsp;&nbsp;&nbsp;_pollfds.<span class="fn">pop_back</span>();<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">continue</span>; <span class="cm">// re-check same index</span><br>
+&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;++i;<br>
+}
+        </div>
+      </div>
+
+      <div class="card blue">
+        <div class="card-title"><span class="icon">🔒</span> safe_close()</div>
+        <div class="card-desc">Closes fd and resets to -1 in one atomic guard step</div>
+        <div class="code-block">
+<span class="kw">static</span> <span class="type">void</span> <span class="fn">safe_close</span>(<span class="type">int</span>&amp; fd) {<br>
+&nbsp;&nbsp;<span class="kw">if</span> (fd &gt;= <span class="num">0</span>) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">close</span>(fd);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;fd = <span class="num">-1</span>; <span class="cm">// guard double-close</span><br>
+&nbsp;&nbsp;}<br>
+}
+        </div>
+        <div style="margin-top:0.75rem; font-size:11px; color:var(--text-dim)">
+          Prevents double-close bugs (UB + potential fd reuse vulnerability)
+        </div>
+      </div>
+
+      <div class="card green">
+        <div class="card-title"><span class="icon">⏱</span> Timeout Housekeeping</div>
+        <div class="card-desc">Runs every poll cycle (100ms tick). 30s idle → close.</div>
+        <div class="syscall-list">
+          <div class="syscall">
+            <div class="syscall-name green">time(NULL)</div>
+            <div class="syscall-detail">
+              compare <span class="flag">now - last_active</span> &gt; 30s<br>
+              skip listeners and CGI fds<br>
+              <span class="comment">→ kills zombie HTTP connections</span>
+            </div>
+          </div>
+          <div class="syscall">
+            <div class="syscall-name green">SIGPIPE</div>
+            <div class="syscall-detail">
+              <span class="flag">signal(SIGPIPE, SIG_IGN)</span><br>
+              <span class="comment">→ send() returns -1 instead of crashing</span><br>
+              <span class="comment">→ set once at run() entry</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card yellow full-card">
+        <div class="card-title"><span class="icon">🔑</span> Complete Syscall Reference</div>
+        <div class="card-desc">Every POSIX/Linux call used in this server, with flags and semantics</div>
+        <table class="fd-table">
+          <thead>
+            <tr><th>Syscall</th><th>Header</th><th>Key Flags / Args</th><th>Return / Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>socket()</td><td>sys/socket.h</td><td>AF_INET · SOCK_STREAM · 0</td><td>fd or -1. TCP v4 socket.</td></tr>
+            <tr><td>setsockopt()</td><td>sys/socket.h</td><td>SOL_SOCKET · SO_REUSEADDR · &amp;1</td><td>0 or -1. Allows port reuse after crash.</td></tr>
+            <tr><td>fcntl()</td><td>fcntl.h</td><td>F_GETFL / F_SETFL · O_NONBLOCK</td><td>Reads then writes flags. Makes fd async.</td></tr>
+            <tr><td>bind()</td><td>sys/socket.h</td><td>sockaddr_in {AF_INET, htons(port), addr}</td><td>0 or -1. Assigns address to socket.</td></tr>
+            <tr><td>listen()</td><td>sys/socket.h</td><td>backlog = 128</td><td>Enables incoming connections. Kernel queue.</td></tr>
+            <tr><td>accept()</td><td>sys/socket.h</td><td>listener_fd · NULL · NULL</td><td>New connected fd. EAGAIN = no pending.</td></tr>
+            <tr><td>recv()</td><td>sys/socket.h</td><td>buf · 4096 · 0</td><td>Bytes read. 0=closed. -1+EAGAIN=retry.</td></tr>
+            <tr><td>send()</td><td>sys/socket.h</td><td>res_buf.c_str() · size · 0</td><td>Bytes sent (may be partial). -1+EAGAIN=retry.</td></tr>
+            <tr><td>read()</td><td>unistd.h</td><td>CGI out_fd · buf · 4096</td><td>Reads CGI stdout. 0=EOF. Used on pipe fds.</td></tr>
+            <tr><td>write()</td><td>unistd.h</td><td>CGI in_fd · body · chunk</td><td>Writes request body to CGI stdin pipe.</td></tr>
+            <tr><td>close()</td><td>unistd.h</td><td>fd</td><td>Releases fd. Always guard with fd≥0 check.</td></tr>
+            <tr><td>poll()</td><td>poll.h</td><td>pollfds[] · count · 100ms</td><td>n=0 timeout. n>0 events. POLLIN/OUT/HUP/ERR.</td></tr>
+            <tr><td>waitpid()</td><td>sys/wait.h</td><td>pid · &amp;status · WNOHANG</td><td>Non-blocking reap. 0=still running. pid=done.</td></tr>
+            <tr><td>kill()</td><td>signal.h</td><td>pid · SIGKILL</td><td>Force-terminate timed-out CGI child.</td></tr>
+            <tr><td>signal()</td><td>signal.h</td><td>SIGPIPE · SIG_IGN</td><td>Ignore broken pipe — send() returns -1 safely.</td></tr>
+            <tr><td>htons()</td><td>arpa/inet.h</td><td>port (host order)</td><td>Host-to-network short. Required for sin_port.</td></tr>
+            <tr><td>inet_addr()</td><td>arpa/inet.h</td><td>"127.0.0.1" string</td><td>Converts dotted IPv4 string to network int.</td></tr>
+            <tr><td>time()</td><td>time.h</td><td>NULL</td><td>Current UNIX timestamp. Used for timeouts.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div>// Server.cpp architecture roadmap</div>
+  <div>poll-based · non-blocking · <span>HTTP/1.1</span></div>
+</footer>
+
+</body>
+</html>
