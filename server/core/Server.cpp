@@ -243,7 +243,8 @@ bool Server::_handle_read(size_t i) {
             std::string err;
             CgiProcess proc;
             if (!_cgi.spawn(cgireq, proc, err)) {
-                log(CLR_RED "[CGI]    ", "Spawn failed  fd=" + std::to_string(fd) + "  " + err);
+                // std::to_string makatcompailax f linux b -std=98 dir blastha _res_b.sizeToString(std::size_t n)
+                log(CLR_RED "[CGI]    ", "Spawn failed  fd=" + _res_b.sizeToString(fd) + "  " + err);
 
                 c->res = _res_b.buildError(500, _configs[c->server_block_index]);
                 _res_b.applySessionCookieIfNeeded(c->req, c->res);
@@ -474,10 +475,11 @@ void Server::_finalize_cgi(Client* c, const ServerConfig& cfg) {
         CgiResponse cgires;
         std::string err;
         if (!_cgi.parseOutput(c->cgi.raw, cgires, err)) {
-            log(CLR_RED "[CGI]    ", "Parse error  fd=" + std::to_string(c->fd) + "  " + err);
+            // std::to_string makatcompailax f linux b -std=98 dir blastha _res_b.sizeToString(std::size_t n)
+            log(CLR_RED "[CGI]    ", "Parse error  fd=" + _res_b.sizeToString(c->fd) + "  " + err);
             ok = false;
         } else {
-            std::ostringstream msg;
+            std::ostringstream msg;  
             msg << "Done  pid=" << c->cgi.pid
                 << "  fd=" << c->fd
                 << "  bytes=" << c->cgi.raw.size();
@@ -599,7 +601,8 @@ void Server::run() {
             }
 
             if (_pollfds[i].revents & (POLLHUP | POLLERR)) {
-                log(CLR_GRAY "[POLL]   ", "HUP/ERR  fd=" + std::to_string(fd));
+                // std::to_string makatcompailax f linux b -std=98 dir blastha _res_b.sizeToString(std::size_t n)
+                log(CLR_GRAY "[POLL]   ", "HUP/ERR  fd=" + _res_b.sizeToString(fd));
                 _close_client(i--); sz--;
                 continue;
             }
