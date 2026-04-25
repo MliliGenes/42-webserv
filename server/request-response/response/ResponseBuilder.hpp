@@ -19,18 +19,18 @@ class ResponseBuilder {
         ResponseBuilder(SessionManager& sessions);
 
         
-        Response dispatch(const Request& req, const ServerConfig& config, cgihandler& cgi,
+        Response    dispatch(const Request& req, const ServerConfig& config, cgihandler& cgi,
                   CgiRequest* cgi_req, bool* is_cgi);
-        Response buildError(int code, const ServerConfig& config);
-        Response buildFromCgi(const CgiResponse& cgires);
-        void applySessionCookieIfNeeded(const Request& req, Response& res);
+        Response    buildError(int code, const ServerConfig& config);
+        Response    buildFromCgi(const CgiResponse& cgires);
+        void        applySessionCookieIfNeeded(const Request& req, Response& res);
+        std::string sizeToString(std::size_t n);
 
     private:
         const LocationConfig* matchRoute(const std::string&  path,
             const ServerConfig& config) const;
             
         std::string statusMessage(int code);
-        std::string sizeToString(std::size_t n);
         std::string getType(const std::string& path) const;
         std::string readFile(const std::string& path) const;
 
