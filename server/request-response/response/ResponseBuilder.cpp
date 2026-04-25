@@ -353,9 +353,7 @@ Response ResponseBuilder::handlePost(const Request&      req, const LocationConf
                 if (slash != std::string::npos)
                     working_directory = fs_path.substr(0, slash);
 
-                // std::string working_directory = root;
                 std::string script_name = fs_path;
-                // std::size_t slash = fs_path.rfind('/');
                 if (slash != std::string::npos)
                 {
                     working_directory = fs_path.substr(0, slash);
