@@ -2,4 +2,5 @@ build/
 dependencies/TrpSchema/build
 dependencies/TrpJSON/build
 explain.md
+main.py
 .DS_store

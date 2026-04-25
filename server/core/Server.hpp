@@ -38,7 +38,7 @@ struct Client {
         CgiRequest  req;
 
         CgiJob() : active(false), pid(-1), in_fd(-1), out_fd(-1), body_sent(0),
-                   start(0), timeout_sec(5), exited(false), exit_status(0) {}
+                   start(0), timeout_sec(10), exited(false), exit_status(0) {}
     };
 
     int         fd;
