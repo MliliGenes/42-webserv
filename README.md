@@ -1,6 +1,11 @@
 # Webserv Project Breakdown
 
-A comprehensive guide to building an HTTP server in C++98, broken down into logical modules with clear tasks and prerequisites.
+## Project Description
+
+`webserv` is a C++98 implementation of a non-blocking HTTP/1.1 web server built for the 42 curriculum.  
+The server is configured through JSON files and supports core web server features such as multiple server blocks, request parsing, static file serving, file upload and deletion routes, CGI execution, and custom error handling.
+
+This document breaks the project down into logical modules with clear tasks and prerequisites.
 
 ## 📚 Essential Reading
 
